@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NewsHub — World News Aggregator</title>
+    <style>
+        :root { --bg: #f0f2f5; --card-bg: #fff; --text: #1a1a2e; --text2: #666; --text3: #888; --filter-bg: #fff; --badge-bg: #e8e8e8; --badge-text: #555; --border: #ddd; --search-bg: #fff; --shadow: rgba(0,0,0,0.06); --shadow-h: rgba(0,0,0,0.1); }
+        body.dark { --bg: #121212; --card-bg: #1e1e1e; --text: #e0e0e0; --text2: #aaa; --text3: #777; --filter-bg: #1e1e1e; --badge-bg: #333; --badge-text: #aaa; --border: #333; --search-bg: #2a2a2a; --shadow: rgba(0,0,0,0.2); --shadow-h: rgba(0,0,0,0.3); }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); transition:background .3s,color .3s; }
+        .top-bar { background:#1a1a2e; color:#aaa; font-size:12px; padding:8px 0; position:sticky; top:0; z-index:1000; }
+        .top-inner { max-width:1400px; margin:0 auto; padding:0 20px; display:flex; justify-content:space-between; align-items:center; }
+        .top-links a { color:#aaa; text-decoration:none; margin-right:16px; transition:color .2s; cursor:pointer; font-size:12px; vertical-align:middle; }
+        .top-links a:hover { color:#fff; }
+        .dark-toggle { display:inline-block; padding:4px 14px; border-radius:20px; font-size:13px; font-weight:700; background:#333; color:#ffd700; border:2px solid #ffd700; transition:all .3s; margin-left:8px; }
+        .dark-toggle:hover { background:#ffd700; color:#333; }
+        body.dark .dark-toggle { background:#ffd700; color:#333; border-color:#ffd700; }
+        body.dark .dark-toggle:hover { background:#333; color:#ffd700; }
+        .header { background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%); color:white; padding:30px 0 25px; }
+        .header-inner { max-width:1400px; margin:0 auto; padding:0 20px; text-align:center; }
+        .site-title { font-size:46px; font-weight:900; letter-spacing:2px; }
+        .site-title span { color:#e94560; }
+        .site-tagline { font-size:14px; color:#8899aa; margin-top:6px; }
+        .last-update { font-size:12px; color:#667788; margin-top:8px; }
+        .controls { max-width:1400px; margin:20px auto 0; padding:0 20px; display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+        .search-box { flex:1; min-width:200px; position:relative; }
+        .search-box input { width:100%; padding:10px 40px; border:2px solid var(--border); border-radius:8px; font-size:14px; outline:none; transition:border .2s; background:var(--search-bg); color:var(--text); }
+        .search-box input:focus { border-color:#e94560; }
+        .search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#999; }
+        .refresh-btn { padding:10px 24px; background:#e94560; color:white; border:none; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; transition:background .2s; white-space:nowrap; }
+        .refresh-btn:hover { background:#c0392b; }
+        .stats { font-size:13px; color:#888; }
+        .tabs { max-width:1400px; margin:20px auto 0; padding:0 20px; display:flex; gap:0; }
+        .tab { padding:12px 36px; font-size:14px; font-weight:700; border:none; cursor:pointer; background:#e0e0e0; color:#666; border-radius:8px 8px 0 0; transition:all .2s; }
+        .tab:hover { background:#d0d0d0; }
+        .tab.active { background:#1a1a2e; color:white; }
+        .container { max-width:1400px; margin:0 auto 30px; padding:0 20px; }
+        .section { display:none; }
+        .section.active { display:block; }
+        .sub-tabs { display:flex; gap:0; margin:10px 0 0; }
+        .sub-tab { padding:8px 18px; font-size:12px; font-weight:600; border:none; cursor:pointer; background:var(--badge-bg); color:var(--badge-text); border-radius:6px 6px 0 0; transition:all .2s; }
+        .sub-tab.active { background:#e94560; color:white; }
+        .filter-bar { display:flex; gap:8px; flex-wrap:wrap; margin:15px 0; padding:12px 16px; background:var(--filter-bg); border-radius:10px; box-shadow:0 1px 4px var(--shadow); align-items:center; }
+        .filter-label { font-size:12px; font-weight:700; color:var(--text3); text-transform:uppercase; margin-right:6px; }
+        .cat-badge { padding:4px 12px; border-radius:14px; font-size:11px; font-weight:600; cursor:pointer; background:var(--badge-bg); color:var(--badge-text); border:none; transition:all .2s; }
+        .cat-badge:hover { background:#d0d0d0; }
+        .cat-badge.active { background:#1a1a2e; color:white; }
+        .src-badge { padding:4px 12px; border-radius:14px; font-size:11px; font-weight:600; cursor:pointer; color:white; border:none; transition:all .2s; }
+        .src-badge.active { transform:scale(1.08); box-shadow:0 2px 8px rgba(0,0,0,0.2); }
+        .src-badge.inactive { opacity:0.4; }
+        .clear-filter { font-size:11px; color:#e94560; cursor:pointer; text-decoration:underline; margin-left:8px; }
+        .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:20px; }
+        .article { background:var(--card-bg); border-radius:10px; overflow:hidden; box-shadow:0 1px 4px var(--shadow); cursor:pointer; transition:all .25s; }
+        .article:hover { transform:translateY(-3px); box-shadow:0 6px 20px var(--shadow-h); }
+        .article-img { height:180px; background-size:cover; background-position:center; }
+        .article-body { padding:18px; }
+        .article-meta { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+        .article-source { padding:2px 10px; border-radius:10px; font-size:10px; font-weight:700; color:white; text-transform:uppercase; }
+        .article-date { font-size:11px; color:var(--text3); }
+        .article-title { font-size:16px; font-weight:700; color:var(--text); margin-bottom:8px; line-height:1.35; }
+        .article-excerpt { font-size:13px; color:var(--text2); line-height:1.55; }
+        .no-results { text-align:center; padding:60px; color:var(--text3); font-size:16px; }
+        .section-label { font-size:18px; font-weight:700; margin:20px 0 10px; color:var(--text); display:flex; align-items:center; gap:8px; }
+        .section-label .icon { font-size:22px; }
+        .footer { background:#1a1a2e; color:#8899aa; text-align:center; padding:30px 20px; margin-top:40px; font-size:13px; line-height:1.8; }
+        .footer a { color:#e94560; text-decoration:none; }
+        body.dark .footer { background:#0a0a0a; }
+        @media (max-width:768px) { .grid { grid-template-columns:1fr; } .site-title { font-size:28px; } .tab { padding:10px 20px; font-size:12px; } .controls { flex-direction:column; } .search-box { width:100%; } }
+    </style>
+</head>
+<body>
+    <div class="top-bar">
+        <div class="top-inner">
+            <div class="top-links">
+                <a onclick="switchLang('ar')">العربية</a>
+                <a onclick="switchLang('en')">English</a>
+                <a onclick="toggleDark()" class="dark-toggle" id="darkToggle">🌙 Dark Mode</a>
+            </div>
+            <div>Sunday, June 14, 2026 at 09:06 PM</div>
+        </div>
+    </div>
+    <div class="header">
+        <div class="header-inner">
+            <div class="site-title">News<span>Hub</span></div>
+            <div class="site-tagline">Real-time news from top sources worldwide • أخبار عاجلة من أشهر المصادر</div>
+            <div class="last-update">Last updated: Sunday, June 14, 2026 at 09:06 PM • 50 articles</div>
+        </div>
+    </div>
+    <div class="tabs">
+        <button class="tab active" onclick="switchLang('ar')">أخبار العربية</button>
+        <button class="tab" onclick="switchLang('en')">English News</button>
+    </div>
+    <div class="controls">
+        <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" placeholder="Search articles..." oninput="searchArticles()">
+        </div>
+        <button class="refresh-btn" onclick="refreshNews()" id="refreshBtn">⟳ Refresh News</button>
+        <span class="stats" id="articleCount">40 articles</span>
+    </div>
+
+    <!-- Arabic Section -->
+    <div class="container">
+        <div id="ar-section" class="section active" style="direction:rtl; text-align:right;">
+            <div class="filter-bar" id="arFilters">
+                <span class="filter-label">المصدر:</span>
+                <span class="src-badge" style="background:#c0392b" onclick="filterArSource('الجزيرة')">الجزيرة</span><span class="src-badge" style="background:#BB1919" onclick="filterArSource('بي بي سي عربي')">بي بي سي عربي</span><span class="src-badge" style="background:#0072C6" onclick="filterArSource('سكاي نيوز عربية')">سكاي نيوز عربية</span><span class="src-badge" style="background:#002395" onclick="filterArSource('فرانس 24 عربي')">فرانس 24 عربي</span><span class="src-badge" style="background:#C22D2D" onclick="filterArSource('روسيا اليوم')">روسيا اليوم</span>
+                <span class="clear-filter" onclick="clearFilters('ar')">مسح</span>
+            </div>
+            <div class="grid" id="arGrid">
+        <div class="article" onclick="window.open('https://www.bbc.com/arabic/articles/cm207yerex8o?at_medium=RSS&amp;at_campaign=rss','_blank')" data-title="ترامب يقول إن الهجوم الإسرائيلي على بيروت &quot;ما كان ينبغي أن يحدث&quot;، وإيران تحذر من &quot;رد وشيك&quot;" data-source="بي بي سي عربي" style="direction:rtl;text-align:right">
+            <div class="article-img" style="background-image:url('https://ichef.bbci.co.uk/ace/ws/240/cpsprodpb/8408/live/ae5eead0-6804-11f1-bcab-e95cb482a369.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#BB1919">بي بي سي عربي</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">ترامب يقول إن الهجوم الإسرائيلي على بيروت &quot;ما كان ينبغي أن يحدث&quot;، وإيران تحذر من &quot;رد وشيك&quot;</div>
+                <div class="article-excerpt">هاجمت إسرائيل الضاحية الجنوبية لبيروت بعد إعلانها اعتراض مسيّرات قالت إن حزب الله أطلقها باتجاه شمال إسرائيل، ووجّه الجيش الإسرائيلي إنذارات إخلاء جديدة لسكان بلدات في جنوب لبنان، ليرتفع عدد البلدات ا</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.bbc.com/arabic/articles/cy06p27gy08o?at_medium=RSS&amp;at_campaign=rss','_blank')" data-title="الرئيس الأمريكي يقول إن &quot;اتفاقاً&quot; سيُوقَّع مع إيران خلال ساعات" data-source="بي بي سي عربي" style="direction:rtl;text-align:right">
+            <div class="article-img" style="background-image:url('https://ichef.bbci.co.uk/ace/ws/240/cpsprodpb/55cb/live/2a3f2f40-6812-11f1-a177-65e13786d3a5.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#BB1919">بي بي سي عربي</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">الرئيس الأمريكي يقول إن &quot;اتفاقاً&quot; سيُوقَّع مع إيران خلال ساعات</div>
+                <div class="article-excerpt">أعلن الرئيس الأمريكي دونالد ترامب أن اتفاقاً مع إيران لإنهاء الحرب سيُوقّع الأحد ويتبعه فتح مضيق هرمز، بينما أكدت طهران أن موعد التوقيع لم يُحسم بعد. ورغم الحديث عن تقدم في المفاوضات، لا تزال خلافات ق</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.bbc.com/arabic/articles/c2eyx7prvnyo?at_medium=RSS&amp;at_campaign=rss','_blank')" data-title="تونس تتحدى مجموعة طَموحة في المونديال، ماذا نعرف عن نسور قرطاج؟" data-source="بي بي سي عربي" style="direction:rtl;text-align:right">
+            <div class="article-img" style="background-image:url('https://ichef.bbci.co.uk/ace/ws/240/cpsprodpb/117e/live/ff883b90-67f6-11f1-8094-9970ec1ebecd.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#BB1919">بي بي سي عربي</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">تونس تتحدى مجموعة طَموحة في المونديال، ماذا نعرف عن نسور قرطاج؟</div>
+                <div class="article-excerpt">تأهل المنتخب التونسي لكأس العالم دون أن تتلق شباكه أي هدف طوال التصفيات، وهو الفريق صاحب العدد الأكبر من النقاط بين كل الفرق التي خاضت تصفيات هذه النسخة من البطولة، ليحصد 28 نقطة من أصل 30 نقطة ممكنة.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.bbc.com/arabic/articles/cz6vp514ldno?at_medium=RSS&amp;at_campaign=rss','_blank')" data-title="الفيفا تدفع للحكم الصومالي عمر أرتان كافة مستحقاته عن بطولة كأس العالم" data-source="بي بي سي عربي" style="direction:rtl;text-align:right">
+            <div class="article-img" style="background-image:url('https://ichef.bbci.co.uk/ace/ws/240/cpsprodpb/ae55/live/f39db540-67fa-11f1-8094-9970ec1ebecd.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#BB1919">بي بي سي عربي</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">الفيفا تدفع للحكم الصومالي عمر أرتان كافة مستحقاته عن بطولة كأس العالم</div>
+                <div class="article-excerpt">أفادت مصادر لبي بي سي سبورت أنه على الرغم من عدم مشاركة عمر أرتان في كأس العالم، إلا أن الفيفا التزمت بدفع راتبه كاملاً. وكان أرتان قد مُنع من دخول الولايات المتحدة، بسبب مزاعم "ارتباطه بأعضاء مشتبه ب</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.bbc.com/arabic/articles/cvgjer1mxrdo?at_medium=RSS&amp;at_campaign=rss','_blank')" data-title="أطباء يرفضون أوامر الإخلاء ويتحدثون لبي بي سي عن خطورة الوضع في مستشفيات جنوب لبنان" data-source="بي بي سي عربي" style="direction:rtl;text-align:right">
+            <div class="article-img" style="background-image:url('https://ichef.bbci.co.uk/ace/ws/240/cpsprodpb/2da5/live/206da740-67fd-11f1-8094-9970ec1ebecd.png')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#BB1919">بي بي سي عربي</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">أطباء يرفضون أوامر الإخلاء ويتحدثون لبي بي سي عن خطورة الوضع في مستشفيات جنوب لبنان</div>
+                <div class="article-excerpt">قُتل 135 من العاملين في مجال الرعاية الصحية ومسعفين، وأُصيب نحو 400 آخرين. وأكدت الأمم المتحدة ضرورة حماية المستشفيات والعاملين في المجال الطبي في جميع الأوقات، وفقا للقانون الدولي.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.rt.com/news/641529-eu-nation-compensation-weapons-ukraine/?utm_source=rss&amp;utm_medium=rss&amp;utm_campaign=RSS','_blank')" data-title="eu nation to demand compensation for weapons donated to ukraine" data-source="روسيا اليوم" style="direction:rtl;text-align:right">
+            <div class="article-img" style="background-image:url('https://mf.b37mrtl.ru/files/2026.06/thumbnail/6a2efef92030272d1434929c.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#C22D2D">روسيا اليوم</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">EU nation to demand compensation for weapons donated to Ukraine</div>
+                <div class="article-excerpt">Slovakia will demand compensation from the EU for weapons it donated to Ukraine, Prime Minister Robert Fico has said Read Full Article at RT.com</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.rt.com/news/641527-us-israel-good-bad-cop/?utm_source=rss&amp;utm_medium=rss&amp;utm_campaign=RSS','_blank')" data-title="us-israeli ‘good cop, bad cop’ tactics outdated – iran’s chief negotiator" data-source="روسيا اليوم" style="direction:rtl;text-align:right">
+            <div class="article-img" style="background-image:url('https://mf.b37mrtl.ru/files/2026.06/thumbnail/6a2ef55b85f5402fab5dd709.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#C22D2D">روسيا اليوم</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">US-Israeli ‘good cop, bad cop’ tactics outdated – Iran’s chief negotiator</div>
+                <div class="article-excerpt">US-Israel “good cop, bad cop” tactics are outdated, Iran’s chief negotiator Mohammad Ghalibaf said after a deadly Israeli strike on Beirut Read Full Article at RT.com</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.rt.com/news/641525-putin-holds-phone-call-trump/?utm_source=rss&amp;utm_medium=rss&amp;utm_campaign=RSS','_blank')" data-title="putin holds phone call with trump - kremlin" data-source="روسيا اليوم" style="direction:rtl;text-align:right">
+            <div class="article-img" style="background-image:url('https://mf.b37mrtl.ru/files/2026.06/thumbnail/6a2edd2d20302718da225d52.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#C22D2D">روسيا اليوم</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">Putin holds phone call with Trump - Kremlin</div>
+                <div class="article-excerpt">Russian President Vladimir Putin has wished his US counterpart, Donald Trump, a happy 80th birthday during a phone call Read Full Article at RT.com</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.rt.com/news/641523-trump-screwed-israel-iran-peace-deal/?utm_source=rss&amp;utm_medium=rss&amp;utm_campaign=RSS','_blank')" data-title="‘trump screwed us:’ israeli officials fume over emerging iran peace deal – media" data-source="روسيا اليوم" style="direction:rtl;text-align:right">
+            <div class="article-img" style="background-image:url('https://mf.b37mrtl.ru/files/2026.06/thumbnail/6a2eabe485f5402b2922f46b.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#C22D2D">روسيا اليوم</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">‘Trump screwed us:’ Israeli officials fume over emerging Iran peace deal – media</div>
+                <div class="article-excerpt">Israeli officials call the emerging Iran peace deal a “catastrophe,” complaining that Trump “screwed” West Jerusalem, according to Ynet Read Full Article at RT.com</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.rt.com/news/641521-zelensky-not-on-trump-g7-list/?utm_source=rss&amp;utm_medium=rss&amp;utm_campaign=RSS','_blank')" data-title="zelensky not on trump’s g7 meeting list – bloomberg" data-source="روسيا اليوم" style="direction:rtl;text-align:right">
+            <div class="article-img" style="background-image:url('https://mf.b37mrtl.ru/files/2026.06/thumbnail/6a2e9a2d203027107f59d6ad.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#C22D2D">روسيا اليوم</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">Zelensky not on Trump’s G7 meeting list – Bloomberg</div>
+                <div class="article-excerpt">Trump reportedly won’t hold a bilateral meeting with Zelensky at the G7 summit, though talks on the sidelines are possible Read Full Article at RT.com</div>
+            </div>
+        </div></div>
+            <div class="no-results" id="arNoResults" style="display:none">لا توجد مقالات تطابق بحثك.</div>
+        </div>
+    </div>
+
+    <!-- English Section -->
+    <div class="container">
+        <div id="en-section" class="section">
+            <div class="sub-tabs">
+                <button class="sub-tab active" onclick="switchEnTab('latest')">📰 Latest</button>
+                <button class="sub-tab" onclick="switchEnTab('trending')">🔥 Trending on Social</button>
+                <button class="sub-tab" onclick="switchEnTab('popular')">⭐ Most Read</button>
+            </div>
+
+            <div id="en-latest">
+                <div class="filter-bar" id="enFilters">
+                    <span class="filter-label">Source:</span>
+                    <span class="src-badge" style="background:#BB1919" onclick="filterEnSource('bbc news')">BBC News</span><span class="src-badge" style="background:#CC0000" onclick="filterEnSource('cnn')">CNN</span><span class="src-badge" style="background:#052962" onclick="filterEnSource('the guardian')">The Guardian</span><span class="src-badge" style="background:#FF8000" onclick="filterEnSource('reuters')">Reuters</span><span class="src-badge" style="background:#0072C6" onclick="filterEnSource('sky news')">Sky News</span><span class="src-badge" style="background:#1A1A1A" onclick="filterEnSource('npr')">NPR</span><span class="src-badge" style="background:#0076A8" onclick="filterEnSource('abc news')">ABC News</span><span class="src-badge" style="background:#E53935" onclick="filterEnSource('associated press')">Associated Press</span>
+                    <span class="clear-filter" onclick="clearFilters('en')">Clear</span>
+                </div>
+                <div class="grid" id="enGrid">
+        <div class="article" onclick="window.open('https://www.bbc.com/news/articles/clyek039l2vo?at_medium=RSS&amp;at_campaign=rss','_blank')" data-title="royal marines board russian shadow fleet oil tanker in english channel" data-source="bbc news" >
+            <div class="article-img" style="background-image:url('https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/2066/live/3ab98dd0-67d5-11f1-9c4b-77e30dd66647.png')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#BB1919">BBC News</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">Royal Marines board Russian shadow fleet oil tanker in English Channel</div>
+                <div class="article-excerpt">Marines were joined by National Crime Agency officers in the six-hour long operation in the early hours of Sunday.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.bbc.com/news/articles/ce8jyp78mklo?at_medium=RSS&amp;at_campaign=rss','_blank')" data-title="tech firms had &#39;enough time&#39; says nandy, ahead of social media announcement" data-source="bbc news" >
+            <div class="article-img" style="background-image:url('https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/d840/live/64dd4300-67c0-11f1-8cd1-95fb45be99e7.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#BB1919">BBC News</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">Tech firms had &#39;enough time&#39; says Nandy, ahead of social media announcement</div>
+                <div class="article-excerpt">The prime minister is expected to announce measures on protecting teenagers online on Monday.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.bbc.com/news/articles/cx2dmwmj4dmo?at_medium=RSS&amp;at_campaign=rss','_blank')" data-title="uk electric car sales target set to be weakened" data-source="bbc news" >
+            <div class="article-img" style="background-image:url('https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/76a4/live/9d333710-6814-11f1-a177-65e13786d3a5.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#BB1919">BBC News</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">UK electric car sales target set to be weakened</div>
+                <div class="article-excerpt">The new target hasn't yet been decided, with different numbers under consideration, the BBC understands.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.bbc.com/news/articles/c892xnwg5vlo?at_medium=RSS&amp;at_campaign=rss','_blank')" data-title="thunderstorms threaten trump&#39;s ufc cage fight on the white house lawn" data-source="bbc news" >
+            <div class="article-img" style="background-image:url('https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/4c6c/live/f7f77e30-6815-11f1-a177-65e13786d3a5.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#BB1919">BBC News</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">Thunderstorms threaten Trump&#39;s UFC cage fight on the White House lawn</div>
+                <div class="article-excerpt">Thousands are expected at the mixed martial arts fight, which coincides with Trump's 80th birthday.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.bbc.com/news/videos/crkvek3dnrgo?at_medium=RSS&amp;at_campaign=rss','_blank')" data-title="watch: protesters clash with police ahead of g7 summit in geneva" data-source="bbc news" >
+            <div class="article-img" style="background-image:url('https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/e640/live/efdb6b60-6821-11f1-8e1d-bbbb1017d210.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#BB1919">BBC News</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">Watch: Protesters clash with police ahead of G7 summit in Geneva</div>
+                <div class="article-excerpt">Swiss police deployed a water cannon and fired tear gas to disperse anti-G7 protesters after clashes.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://edition.cnn.com/webview/politics/live-news/trump-indictment-stormy-daniels-news-04-03-23/index.html','_blank')" data-title="trump pleads not guilty to 34 felony counts" data-source="cnn" >
+            <div class="article-img" style="background-image:url('https://cdn.cnn.com/cnnnext/dam/assets/230403164607-22-trump-indictment-travel-new-york-super-169.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#CC0000">CNN</span>
+                    <span class="article-date"></span>
+                </div>
+                <div class="article-title">Trump pleads not guilty to 34 felony counts</div>
+                <div class="article-excerpt"></div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.cnn.com/videos/politics/2023/04/05/maggie-haberman-donald-trump-speech-indictment-reaction-sot-cnntm-vpx.cnn','_blank')" data-title="haberman reveals why trump attacked judge and his family in speech" data-source="cnn" >
+            <div class="article-img" style="background-image:url('https://cdn.cnn.com/cnnnext/dam/assets/230405092519-trump-haberman-split-super-169.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#CC0000">CNN</span>
+                    <span class="article-date">Wed, 05 Apr 2023</span>
+                </div>
+                <div class="article-title">Haberman reveals why Trump attacked judge and his family in speech</div>
+                <div class="article-excerpt">CNN political contributor Maggie Haberman explains the reasoning behind Donald Trump's attacks on the judge and his family during a speech at his Mar-a-Lago resort after he was arraigned on felony cha</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.cnn.com/collections/intl-trump-040223/','_blank')" data-title="what to know about the trump indictment on the eve of his court appearance" data-source="cnn" >
+            <div class="article-img" style="background-image:url('https://cdn.cnn.com/cnnnext/dam/assets/230403165727-03-trump-trump-tower-230403-super-169.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#CC0000">CNN</span>
+                    <span class="article-date">Wed, 05 Apr 2023</span>
+                </div>
+                <div class="article-title">What to know about the Trump indictment on the eve of his court appearance</div>
+                <div class="article-excerpt"></div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://cnn.it/411KYN7','_blank')" data-title="read: trump indictment related to hush money payment" data-source="cnn" >
+            <div class="article-img" style="background-image:url('https://cdn.cnn.com/cnnnext/dam/assets/230404123050-19-trump-arraignment-0404-super-169.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#CC0000">CNN</span>
+                    <span class="article-date"></span>
+                </div>
+                <div class="article-title">READ: Trump indictment related to hush money payment</div>
+                <div class="article-excerpt"></div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://edition.cnn.com/webview/europe/live-news/russia-ukraine-war-news-04-03-23/index.html','_blank')" data-title="russian authorities detain suspect over st. petersburg cafe blast" data-source="cnn" >
+            <div class="article-img" style="background-image:url('https://cdn.cnn.com/cnnnext/dam/assets/230403122852-04-russia-cafe-explosion-super-169.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#CC0000">CNN</span>
+                    <span class="article-date"></span>
+                </div>
+                <div class="article-title">Russian authorities detain suspect over St. Petersburg cafe blast</div>
+                <div class="article-excerpt"></div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.theguardian.com/society/2026/jun/11/london-council-seizes-social-housing-flat-sierra-leone-first-lady','_blank')" data-title="london council seizes social housing flat rented by sierra leone first lady" data-source="the guardian" >
+            <div class="article-img" style="background-image:url('https://i.guim.co.uk/img/media/eb6a726a61edfe12624ade8f1deb2877ce05421a/561_0_3096_2477/master/3096.jpg?width=140&quality=85&auto=format&fit=max&s=ab001e19daa7789cf9557534b7b67768')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#052962">The Guardian</span>
+                    <span class="article-date">Thu, 11 Jun 2026</span>
+                </div>
+                <div class="article-title">London council seizes social housing flat rented by Sierra Leone first lady</div>
+                <div class="article-excerpt">Fatima Jabbe-Bio kept tenancy in Southwark despite living for much of year at presidential lodge in FreetownA social housing flat rented by Sierra Leone’s first lady has been seized by a London counci</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.theguardian.com/us-news/2026/jun/10/trump-administration-immigrants-climate-crisis','_blank')" data-title="trump targeting immigrants from countries hit most by climate shocks" data-source="the guardian" >
+            <div class="article-img" style="background-image:url('https://i.guim.co.uk/img/media/e568abb057651e11af43846809a978df3c5a45ff/0_0_1500_1200/master/1500.jpg?width=140&quality=85&auto=format&fit=max&s=eacbb29eaeac394d90486ad92b4bf270')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#052962">The Guardian</span>
+                    <span class="article-date">Wed, 10 Jun 2026</span>
+                </div>
+                <div class="article-title">Trump targeting immigrants from countries hit most by climate shocks</div>
+                <div class="article-excerpt">A Guardian analysis reveals how most of 39 countries facing US entry restrictions are most vulnerable environmentally‘Every day it’s more barriers’: how the US is shutting out climate refugeesDonald T</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.theguardian.com/global-development/2026/jun/10/coltan-drc-m23-global-witness-investigation','_blank')" data-title="global brands ‘likely’ using mineral that funds rebels accused of atrocities in drc, investigation finds" data-source="the guardian" >
+            <div class="article-img" style="background-image:url('https://i.guim.co.uk/img/media/33e60df009fdec547631627e7a17a773492cadf7/751_0_5000_4000/master/5000.jpg?width=140&quality=85&auto=format&fit=max&s=fd82f98516ba54c540eb5d6b5813e05b')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#052962">The Guardian</span>
+                    <span class="article-date">Wed, 10 Jun 2026</span>
+                </div>
+                <div class="article-title">Global brands ‘likely’ using mineral that funds rebels accused of atrocities in DRC, investigation finds</div>
+                <div class="article-excerpt">Amazon and Sony among firms that may have sourced coltan, used in phones, from supply chains controlled by the M23 rebels, says Global WitnessLeading global brands including Amazon, Ericsson and Sony </div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.theguardian.com/world/2026/jun/09/man-shot-during-protest-against-proposed-us-ebola-quarantine-facility-in-kenya','_blank')" data-title="man shot dead during protest against proposed us ebola quarantine facility in kenya" data-source="the guardian" >
+            <div class="article-img" style="background-image:url('https://i.guim.co.uk/img/media/f226f4da11f7c00a4678d55ae9dbe2c3d5c2ce8f/0_0_4169_3335/master/4169.jpg?width=140&quality=85&auto=format&fit=max&s=d1a12e50e367df3d5d99ee0d030639ee')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#052962">The Guardian</span>
+                    <span class="article-date">Tue, 09 Jun 2026</span>
+                </div>
+                <div class="article-title">Man shot dead during protest against proposed US Ebola quarantine facility in Kenya</div>
+                <div class="article-excerpt">Police dispersed demonstrators in Nanyuki, 120 miles from Nairobi, amid rising anger at US plansKenyan police have shot dead a man during a protest against a proposed Ebola quarantine facility for US </div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.theguardian.com/world/2026/jun/08/bandits-in-north-west-nigeria-abduct-villagers-they-invited-to-discuss-peace-talks','_blank')" data-title="bandits in north-west nigeria abduct villagers they invited to discuss peace talks" data-source="the guardian" >
+            <div class="article-img" style="background-image:url('https://i.guim.co.uk/img/media/bfe8b8d91bf1f350712b4ebdb6ea705ae11a17a0/561_0_4560_3648/master/4560.jpg?width=140&quality=85&auto=format&fit=max&s=c6d5ec8341cd29a029f9dbf34fdac419')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#052962">The Guardian</span>
+                    <span class="article-date">Mon, 08 Jun 2026</span>
+                </div>
+                <div class="article-title">Bandits in north-west Nigeria abduct villagers they invited to discuss peace talks</div>
+                <div class="article-excerpt">Thirty-nine people taken near Magamin Diddi village in Maradun municipality, north-west Zamfara state, police sayArmed bandits in north-west Nigeria abducted dozens of villagers whom they invited to a</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://news.sky.com/story/hamilton-russell-and-norris-complete-all-british-podium-at-barcelona-catalunya-grand-prix-13554030','_blank')" data-title="british 1-2-3 at barcelona-catalunya grand prix - first since 1968" data-source="sky news" >
+            <div class="article-img" style="background-image:url('https://e3.365dm.com/26/06/1920x1080/skynews-hamilton-russell-norris_7273362.jpg?20260614171135')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#0072C6">Sky News</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">British 1-2-3 at Barcelona-Catalunya Grand Prix - first since 1968</div>
+                <div class="article-excerpt">Sir Lewis Hamilton has won his first Formula 1 Grand Prix victory with Ferrari, while George Russell and defending champion Lando Norris made it the first all-British podium since 1968.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://news.sky.com/story/plane-that-crashed-in-missouri-killing-12-was-carrying-skydivers-13554108','_blank')" data-title="plane that crashed in missouri killing 12 was carrying skydivers" data-source="sky news" >
+            <div class="article-img" style="background-image:url('https://e3.365dm.com/26/06/1920x1080/skynews-missouri-plane-crash_7273487.jpg?20260614201714')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#0072C6">Sky News</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">Plane that crashed in Missouri killing 12 was carrying skydivers</div>
+                <div class="article-excerpt">Authorities say 12 people have been killed after a plane taking people up to skydive crashed in Missouri.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://news.sky.com/story/switzerland-rejects-a-cap-on-its-population-in-a-referendum-13553912','_blank')" data-title="switzerland rejects a cap on its population" data-source="sky news" >
+            <div class="article-img" style="background-image:url('https://e3.365dm.com/26/06/1920x1080/skynews-switzerland-population-vote_7272330.jpg?20260613123832')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#0072C6">Sky News</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">Switzerland rejects a cap on its population</div>
+                <div class="article-excerpt">Switzerland has rejected a cap on the country's population when the proposal was put to the vote in a nationwide referendum.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://news.sky.com/story/daredevil-adventurer-nicknamed-spider-man-of-yemen-dies-climbing-volcanic-crater-13554075','_blank')" data-title="&#39;spider-man of yemen&#39; dies climbing volcanic crater" data-source="sky news" >
+            <div class="article-img" style="background-image:url('https://e3.365dm.com/26/06/1920x1080/skynews-yemen-daredevil_7273381.jpg?20260614173450')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#0072C6">Sky News</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">&#39;Spider-Man of Yemen&#39; dies climbing volcanic crater</div>
+                <div class="article-excerpt">A daredevil adventurer nicknamed "The Spider-Man of Yemen" has died after falling into a volcano crater while attempting to climb a vertical rock face without safety equipment.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://news.sky.com/story/tommy-robinson-says-hes-been-detained-at-heathrow-13553889','_blank')" data-title="tommy robinson says he&#39;s been detained at heathrow" data-source="sky news" >
+            <div class="article-img" style="background-image:url('https://e3.365dm.com/26/06/1920x1080/skynews-tommy-robinson_7272969.jpg?20260614083917')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#0072C6">Sky News</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">Tommy Robinson says he&#39;s been detained at Heathrow</div>
+                <div class="article-excerpt">Tommy Robinson says he's been detained at Heathrow under counter-terrorism laws.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.npr.org/2026/06/14/nx-s1-5857729/skydiving-plane-crash-missouri','_blank')" data-title="12 dead after skydiving plane crashes in missouri, authorities say" data-source="npr" >
+            <div class="article-img" style="background:linear-gradient(135deg,#00f2fe,#43e97b)"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#1A1A1A">NPR</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">12 dead after skydiving plane crashes in Missouri, authorities say</div>
+                <div class="article-excerpt">Authorities say a pilot and 11 others were killed when a plane taking people on a skydiving outing crashed and caught fire in Missouri.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.npr.org/2026/06/14/nx-s1-5857167/trump-g7-iran-war-macron-france','_blank')" data-title="the u.s.-led war in iran will dominate trump&#39;s g7 trip to france" data-source="npr" >
+            <div class="article-img" style="background:linear-gradient(135deg,#4facfe,#00f2fe)"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#1A1A1A">NPR</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">The U.S.-led war in Iran will dominate Trump&#39;s G7 trip to France</div>
+                <div class="article-excerpt">The gathering was originally expected to be a meeting focused on a variety of separate economic and security issues.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.npr.org/2026/06/14/g-s1-127865/world-cup-soccer-grannies','_blank')" data-title="here&#39;s who&#39;s missing at the world cup: soccer-playing grannies!" data-source="npr" >
+            <div class="article-img" style="background:linear-gradient(135deg,#43e97b,#38f9d7)"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#1A1A1A">NPR</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">Here&#39;s who&#39;s missing at the World Cup: Soccer-playing grannies!</div>
+                <div class="article-excerpt">The World Cup isn't the only global soccer event of note. Check out the Grannies International Football Tournament.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.npr.org/2026/06/14/nx-s1-5805984/glp1-telehealth-weight-loss-drugs','_blank')" data-title="primary care doctors raise alarm as telehealth companies get involved in obesity drugs" data-source="npr" >
+            <div class="article-img" style="background:linear-gradient(135deg,#38f9d7,#fa709a)"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#1A1A1A">NPR</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">Primary care doctors raise alarm as telehealth companies get involved in obesity drugs</div>
+                <div class="article-excerpt">Telehealth companies offer lifestyle support so people taking obesity drugs can have the most success losing weight. But employers also want the telehealth providers to limit spending on the drugs.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.npr.org/2026/06/14/nx-s1-5854962/trump-ufc-white-house-fights','_blank')" data-title="trump&#39;s ufc fights bring historic spectacle to white house" data-source="npr" >
+            <div class="article-img" style="background:linear-gradient(135deg,#4facfe,#00f2fe)"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#1A1A1A">NPR</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">Trump&#39;s UFC fights bring historic spectacle to White House</div>
+                <div class="article-excerpt">Seven cage fights will be held on the White House grounds in honor of the nation's upcoming 250th anniversary.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://abcnews.com/International/live-updates/iran-live-updates-israel-iran-trade-strikes-trump/?id=133674243','_blank')" data-title="iran live updates: israeli military says it killed a senior hezbollah commander" data-source="abc news" >
+            <div class="article-img" style="background-image:url('https://s.abcnews.com/images/International/Tehran-DB-260614_1781433710963_hpMain_4x3t_384.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#0076A8">ABC News</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">Iran live updates: Israeli military says it killed a senior Hezbollah commander</div>
+                <div class="article-excerpt">President Donald Trump announced "major combat operations" against Iran on Feb. 28, with massive joint U.S.-Israeli strikes.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://abcnews.com/video/41463246/','_blank')" data-title="live:  abc news live" data-source="abc news" >
+            <div class="article-img" style="background-image:url('https://s.abcnews.com/images/Live/abc_news_live-abc-ml-250210_1739199021469_hpMain_4x3t_384.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#0076A8">ABC News</span>
+                    <span class="article-date">Thu, 11 Jun 2026</span>
+                </div>
+                <div class="article-title">LIVE:  ABC News Live</div>
+                <div class="article-excerpt">24/7 coverage of breaking news and live events</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://abcnews.com/Politics/sen-mitch-mcconnell-hospitalized-undisclosed-condition-spokesperson/story?id=133867926','_blank')" data-title="sen. mitch mcconnell hospitalized with undisclosed condition, spokesperson says" data-source="abc news" >
+            <div class="article-img" style="background-image:url('https://s.abcnews.com/images/Politics/mitch-mcconnell-defense-approps-20260614-rt-jh_1781461050749_hpMain_4x3t_384.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#0076A8">ABC News</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">Sen. Mitch McConnell hospitalized with undisclosed condition, spokesperson says</div>
+                <div class="article-excerpt">Sen. Mitch McConnell was admitted to the hospital on Sunday, according to a spokesperson.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://abcnews.com/US/wireStory/nara-organics-recalls-baby-formula-sold-target-after-133855478','_blank')" data-title="baby formula sold at target recalled after multistate infant botulism outbreak" data-source="abc news" >
+            <div class="article-img" style="background-image:url('https://s.abcnews.com/images/US/wirestory_90a0a08910d1162d77b9eb65d63ed667_4x3_384.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#0076A8">ABC News</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">Baby formula sold at Target recalled after multistate infant botulism outbreak</div>
+                <div class="article-excerpt">Nara Organics has recalled its organic baby formula sold at Target stores and online due to a multistate outbreak of infant botulism</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://abcnews.com/video/133859871/','_blank')" data-title="watch:  preview of the los angeles pride parade" data-source="abc news" >
+            <div class="article-img" style="background-image:url('https://s.abcnews.com/images/GMA/260614_gma_benitez_pride1_hpMain_4x3_384.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#0076A8">ABC News</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">WATCH:  Preview of the Los Angeles Pride parade</div>
+                <div class="article-excerpt">ABC News' Gio Benitez, who will be co-hosting the coverage of the parade, shares what people can look forward to at one of America's biggest Pride parades.</div>
+            </div>
+        </div></div>
+                <div class="no-results" id="enNoResults" style="display:none">No articles match your search.</div>
+            </div>
+
+            <div id="en-trending" style="display:none">
+                <div class="section-label"><span class="icon">🔥</span> Trending on Social Media</div>
+                <div class="grid" id="trGrid"></div>
+            </div>
+
+            <div id="en-popular" style="display:none">
+                <div class="section-label"><span class="icon">⭐</span> Most Read</div>
+                <div class="grid" id="popGrid">
+        <div class="article" onclick="window.open('https://www.bbc.co.uk/news/world-middle-east-63851215?at_medium=RSS&amp;at_campaign=rss','_blank')" data-title="the seven-day-a-week life of a maid in qatar" data-source="bbc most read" >
+            <div class="article-img" style="background-image:url('https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/FB00/production/_127865246_maid2-nc.png')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#BB1919">BBC Most Read</span>
+                    <span class="article-date">Fri, 09 Dec 2022</span>
+                </div>
+                <div class="article-title">The seven-day-a-week life of a maid in Qatar</div>
+                <div class="article-excerpt">Maids in Qatar often work long hours without a day off, despite changes to employment law.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.bbc.co.uk/news/world-63727404?at_medium=RSS&amp;at_campaign=rss','_blank')" data-title="my dream holiday was a $30,000 scam" data-source="bbc most read" >
+            <div class="article-img" style="background-image:url('https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/65D1/production/_127756062_adriane_table.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#BB1919">BBC Most Read</span>
+                    <span class="article-date">Thu, 24 Nov 2022</span>
+                </div>
+                <div class="article-title">My dream holiday was a $30,000 scam</div>
+                <div class="article-excerpt">Social media is helping travel agents to impress clients, and sometimes to scam them.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.bbc.co.uk/news/uk-62821117?at_medium=RSS&amp;at_campaign=rss','_blank')" data-title="deepfaked: ‘they put my face on a porn video’" data-source="bbc most read" >
+            <div class="article-img" style="background-image:url('https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/FD74/production/_127248846_1200-super-kate-isaacs-pdc_1226.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#BB1919">BBC Most Read</span>
+                    <span class="article-date">Thu, 20 Oct 2022</span>
+                </div>
+                <div class="article-title">Deepfaked: ‘They put my face on a porn video’</div>
+                <div class="article-excerpt">Campaigner Kate Isaacs describes the horror of seeing her face digitally edited into an adult film.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.bbc.co.uk/news/world-63213567?at_medium=RSS&amp;at_campaign=rss','_blank')" data-title="tiktok profits from livestreams of families begging" data-source="bbc most read" >
+            <div class="article-img" style="background-image:url('https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/135BE/production/_127049297_2tiktokthumbnailclean.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#BB1919">BBC Most Read</span>
+                    <span class="article-date">Wed, 12 Oct 2022</span>
+                </div>
+                <div class="article-title">TikTok profits from livestreams of families begging</div>
+                <div class="article-excerpt">Children are among those pleading for hours for digital gifts, as the company takes a cut of up to 70%.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.bbc.co.uk/news/uk-63116989?at_medium=RSS&amp;at_campaign=rss','_blank')" data-title="&#39;claims i had sexsomnia destroyed my rape case&#39;" data-source="bbc most read" >
+            <div class="article-img" style="background-image:url('https://ichef.bbci.co.uk/ace/standard/240/cpsprodpb/143EF/production/_126972928_1024-super-sexsomnia_still3.jpg')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#BB1919">BBC Most Read</span>
+                    <span class="article-date">Tue, 04 Oct 2022</span>
+                </div>
+                <div class="article-title">&#39;Claims I had sexsomnia destroyed my rape case&#39;</div>
+                <div class="article-excerpt">Jade's case failed to reach court because it was suggested she may have a rare sleep disorder.</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.theguardian.com/food/2026/jun/14/everything-you-need-to-know-about-sugar-from-how-much-you-should-consume-to-some-of-its-50-disguises','_blank')" data-title="everything you need to know about sugar – from how much you should consume, to some of its 50 disguises" data-source="guardian popular" >
+            <div class="article-img" style="background-image:url('https://i.guim.co.uk/img/media/8b28ac4176948252e82d5ca9cd489500983885b5/0_0_3000_2400/master/3000.jpg?width=140&quality=85&auto=format&fit=max&s=80d18646a4d74890a660714a2a9e2598')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#052962">Guardian Popular</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">Everything you need to know about sugar – from how much you should consume, to some of its 50 disguises</div>
+                <div class="article-excerpt">Fructose, glucose, sucrose. Lactose, maltose, dextrose. Treacle, molasses … honey! The sweet stuff is everywhere, in everything from colas and cakes to fruit and veg. Are some forms healthier than oth</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.theguardian.com/world/2026/jun/14/lgbtq-pride-rochford-essex-council-library-ban-reform-uk','_blank')" data-title="‘straight out of trumpland’: lgbtq+ members fight for pride after essex library ban" data-source="guardian popular" >
+            <div class="article-img" style="background-image:url('https://i.guim.co.uk/img/media/479e78db013befcef7c0ecb46276091cbba5f154/560_0_5600_4480/master/5600.jpg?width=140&quality=85&auto=format&fit=max&s=636c9c84f0be1ee7c69fd47f26064007')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#052962">Guardian Popular</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">‘Straight out of Trumpland’: LGBTQ+ members fight for Pride after Essex library ban</div>
+                <div class="article-excerpt">Rochford LGBTQ+ community say Reform council’s ban on flying pride flags or holding events states they’re not welcomeBefore Reform gained control of Essex county council in the May elections, Chris Ta</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.theguardian.com/commentisfree/2026/jun/14/makerfield-labour-andy-burnham-reform','_blank')" data-title="‘labour had their chance – they flopped.’ two days in makerfield show me the scale of burnham’s task | john harris" data-source="guardian popular" >
+            <div class="article-img" style="background-image:url('https://i.guim.co.uk/img/media/b2bd3775f9a64127a4633866918471de3efade04/0_0_7200_5760/master/7200.jpg?width=140&quality=85&auto=format&fit=max&s=e30a9da1596912d98306099b020d5686')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#052962">Guardian Popular</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">‘Labour had their chance – they flopped.’ Two days in Makerfield show me the scale of Burnham’s task | John Harris</div>
+                <div class="article-excerpt">Touring this bitterly divided constituency, what strikes you most is people want something better. But what exactly? Keir Starmer teeters. The defence secretary exits, and thereby seems to confirm the</div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.theguardian.com/media/2026/jun/14/have-i-been-influenced-personal-taste-out-of-fashion-algorithm','_blank')" data-title="‘have i been influenced, or is this actually me?’ how personal taste fell out of fashion" data-source="guardian popular" >
+            <div class="article-img" style="background-image:url('https://i.guim.co.uk/img/media/d36e785d8b943ad655c143990208db68068d93e0/52_0_4990_3993/master/4990.jpg?width=140&quality=85&auto=format&fit=max&s=b3c6402f9bac8aa9c38dc604b4cadd1a')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#052962">Guardian Popular</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">‘Have I been influenced, or is this actually me?’ How personal taste fell out of fashion</div>
+                <div class="article-excerpt">Our favourite music, clothes and books used to be markers of individuality – but the algorithm has made us all sheep. Meet the style rebels fighting backWhat are you into? What floats your boat? What </div>
+            </div>
+        </div>
+        <div class="article" onclick="window.open('https://www.theguardian.com/environment/2026/jun/14/why-investment-fund-rewilding-north-yorkshire-estate-rebalance-earth','_blank')" data-title="‘people start connecting the dots’: why an investment fund is rewilding a north yorkshire estate" data-source="guardian popular" >
+            <div class="article-img" style="background-image:url('https://i.guim.co.uk/img/media/4e08eab35f79ff6f2b6bb80abded05b440a7f388/606_0_6500_5200/master/6500.jpg?width=140&quality=85&auto=format&fit=max&s=f39a1d0be95caf1649f876102d49bbca')"></div>
+            <div class="article-body">
+                <div class="article-meta">
+                    <span class="article-source" style="background:#052962">Guardian Popular</span>
+                    <span class="article-date">Sun, 14 Jun 2026</span>
+                </div>
+                <div class="article-title">‘People start connecting the dots’: why an investment fund is rewilding a North Yorkshire estate</div>
+                <div class="article-excerpt">Rebalance Earth is investing in Broughton Sanctuary to generate financial, environmental and social returnsFrom a high point on the hill, the North Yorkshire landscape unrolls below. The moorland abov</div>
+            </div>
+        </div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>NewsHub © 2026 — All articles belong to their respective owners. Non-commercial aggregator.</p>
+        <p><a href="#" onclick="scrollToTop()">↑ Back to top</a></p>
+    </div>
+
+    <script>
+        let currentLang = 'ar';
+        let enSourceFilter = null, arSourceFilter = null;
+        let currentEnTab = 'latest';
+
+        function switchLang(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(lang + '-section').classList.add('active');
+            document.querySelectorAll('.tab')[lang === 'ar' ? 0 : 1].classList.add('active');
+            searchArticles();
+        }
+
+        function switchEnTab(tab) {
+            currentEnTab = tab;
+            document.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('en-latest').style.display = tab === 'latest' ? 'block' : 'none';
+            document.getElementById('en-trending').style.display = tab === 'trending' ? 'block' : 'none';
+            document.getElementById('en-popular').style.display = tab === 'popular' ? 'block' : 'none';
+            // Find and activate correct sub-tab
+            document.querySelectorAll('.sub-tab').forEach((t,i) => {
+                if (i === (tab === 'latest' ? 0 : tab === 'trending' ? 1 : 2)) t.classList.add('active');
+            });
+        }
+
+        function searchArticles() {
+            const q = document.getElementById('searchInput').value.toLowerCase();
+            const lang = currentLang;
+            if (lang === 'ar') {
+                filterGrid('arGrid', 'arNoResults', q);
+            } else {
+                if (currentEnTab === 'latest') filterGrid('enGrid', 'enNoResults', q);
+                else if (currentEnTab === 'trending') filterGrid('trGrid', null, q);
+                else filterGrid('popGrid', null, q);
+            }
+            updateCount();
+        }
+
+        function filterGrid(gridId, noResId, q) {
+            const grid = document.getElementById(gridId);
+            if (!grid) return;
+            const articles = grid.querySelectorAll('.article');
+            let count = 0;
+            articles.forEach(a => {
+                const title = a.getAttribute('data-title') || '';
+                const source = a.getAttribute('data-source') || '';
+                const show = !q || title.includes(q) || source.includes(q);
+                a.style.display = show ? '' : 'none';
+                if (show) count++;
+            });
+            if (noResId) {
+                document.getElementById(noResId).style.display = count === 0 ? 'block' : 'none';
+            }
+        }
+
+        function filterEnSource(src) {
+            enSourceFilter = enSourceFilter === src ? null : src;
+            updateSrcBadges('enFilters', enSourceFilter);
+            if (enSourceFilter) {
+                document.querySelectorAll('#enGrid .article').forEach(a => {
+                    a.style.display = (a.getAttribute('data-source') === enSourceFilter) ? '' : 'none';
+                });
+            } else {
+                document.querySelectorAll('#enGrid .article').forEach(a => a.style.display = '');
+            }
+            searchArticles();
+        }
+
+        function filterArSource(src) {
+            arSourceFilter = arSourceFilter === src ? null : src;
+            updateSrcBadges('arFilters', arSourceFilter);
+            if (arSourceFilter) {
+                document.querySelectorAll('#arGrid .article').forEach(a => {
+                    a.style.display = (a.getAttribute('data-source') === arSourceFilter) ? '' : 'none';
+                });
+            } else {
+                document.querySelectorAll('#arGrid .article').forEach(a => a.style.display = '');
+            }
+            searchArticles();
+        }
+
+        function updateSrcBadges(containerId, activeVal) {
+            document.getElementById(containerId).querySelectorAll('.src-badge').forEach(b => {
+                const val = b.textContent.toLowerCase().trim();
+                b.classList.toggle('active', val === activeVal);
+                b.classList.toggle('inactive', activeVal && val !== activeVal);
+            });
+        }
+
+        function clearFilters(lang) {
+            if (lang === 'en') enSourceFilter = null;
+            else arSourceFilter = null;
+            document.getElementById(lang + 'Filters').querySelectorAll('.active,.inactive').forEach(b => b.classList.remove('active', 'inactive'));
+            document.getElementById('searchInput').value = '';
+            document.querySelectorAll('.article').forEach(a => a.style.display = '');
+            searchArticles();
+        }
+
+        function updateCount() {
+            const visible = document.querySelectorAll('.article[style*="display: "], .article:not([style*="display: none"])').length;
+            document.getElementById('articleCount').textContent = document.querySelectorAll('.article').length + ' articles';
+        }
+
+        function toggleDark() {
+            document.body.classList.toggle('dark');
+            const isDark = document.body.classList.contains('dark');
+            localStorage.setItem('darkMode', isDark);
+            document.getElementById('darkToggle').textContent = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+        }
+        if (localStorage.getItem('darkMode') === 'true') { document.body.classList.add('dark'); document.getElementById('darkToggle').textContent = '☀️ Light Mode'; }
+
+        function refreshNews() { window.location.href = window.location.pathname + '?refresh=' + Date.now(); }
+        function scrollToTop() { window.scrollTo({ top:0, behavior:'smooth' }); }
+    </script>
+</body>
+</html>
