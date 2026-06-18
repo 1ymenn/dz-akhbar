@@ -529,9 +529,6 @@ async def async_fetch_all(regions, max_per_source):
                         a["text"] = '\n\n'.join(clean)[:3000]
                 except:
                     pass
-                # Fallback: use summary if no text
-                if not a.get("text") and a.get("summary"):
-                    a["text"] = a["summary"]
                 # Extract video
                 m = re.search(r'youtube\.com/embed/([a-zA-Z0-9_-]+)', html, re.IGNORECASE)
                 if not m:
@@ -553,6 +550,24 @@ async def async_fetch_all(regions, max_per_source):
         for a in all_articles:
             if not a.get("text") and a.get("summary"):
                 a["text"] = a["summary"]
+            # Last resort: try simple extraction from page
+            if not a.get("text") and a.get("link"):
+                try:
+                    html2, _ = await async_fetch_page(session, a["link"], sem)
+                    if html2:
+                        # Strip all tags, get raw text
+                        raw = re.sub(r'<script[^>]*>.*?</script>', '', html2, flags=re.DOTALL|re.IGNORECASE)
+                        raw = re.sub(r'<style[^>]*>.*?</style>', '', raw, flags=re.DOTALL|re.IGNORECASE)
+                        raw = re.sub(r'<[^>]+>', ' ', raw)
+                        import html as html_mod
+                        raw = html_mod.unescape(raw)
+                        raw = re.sub(r'\s+', ' ', raw).strip()
+                        # Find the longest text chunk (likely the article body)
+                        chunks = [c.strip() for c in re.split(r'[.!?؟!.\n]', raw) if len(c.strip()) > 40]
+                        if chunks:
+                            a["text"] = '. '.join(chunks[:20])[:3000]
+                except:
+                    pass
 
         return all_articles
 

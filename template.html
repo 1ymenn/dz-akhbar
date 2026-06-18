@@ -150,7 +150,7 @@ document.getElementById('modTitle').textContent=title||'';
 var bodyEl=document.getElementById('modBody');
 var html='';
     if(videoId){html+='<div style="position:relative;padding-bottom:56.25%;height:0;background:#000;border-radius:4px;overflow:hidden"><iframe src="https://www.youtube.com/embed/'+videoId+'" style="position:absolute;inset:0;width:100%;height:100%" frameborder="0" allowfullscreen loading="lazy"></iframe></div>'}
-    else if(txt){html+='<p>'+txt.replace(/\n\n/g,'</p><p>')+'</p>'}else{html+='<p style="color:var(--text3)">⚠️ لم نتمكن من تحميل نص المقال</p>'}
+    else if(txt){html+='<p>'+txt.replace(/\n\n/g,'</p><p>')+'</p>'}else{html+='<p style="color:var(--text3)">⚠️ لم نتمكن من تحميل نص المقال. <a href="'+link+'" target="_blank" rel="noopener" style="color:var(--accent)">اقرأ المقال الأصلي</a></p>'}
 bodyEl.innerHTML=html;
 bodyEl.scrollTop=0;
 document.getElementById('modProgress').style.width='0%';
