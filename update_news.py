@@ -983,21 +983,25 @@ if __name__ == "__main__":
         elapsed = time.time() - t0
         print(f"Total build time: {elapsed:.1f}s")
         if changed:
-            print("\nDeploying to Surge.sh...")
-            r = subprocess.run(["npx.cmd", "surge", "./", "https://dz-akhbar.surge.sh"],
-                               timeout=300)
-            if r.returncode == 0:
-                print("Deploy successful!")
-            else:
-                print("Deploy failed (return code: %d). Site may not have updated." % r.returncode)
+            if not once:
+                print("\nDeploying to Surge.sh...")
+                npx = "npx" if os.name != "nt" else "npx.cmd"
+                r = subprocess.run([npx, "surge", "./", "https://dz-akhbar.surge.sh"],
+                                   timeout=300)
+                if r.returncode == 0:
+                    print("Deploy successful!")
+                else:
+                    print("Deploy failed (return code: %d). Site may not have updated." % r.returncode)
 
-            # Post-update health check (3x)
-            print(f"Post-update health check for {SITE_URL}...")
-            post_ok = health_check(SITE_URL, retries=3, delay=10)
-            if not post_ok:
-                print("WARNING: Site may be down after deploy!")
-            elif not pre_ok:
-                print("WARNING: Site was down before update, now back up.")
+                # Post-update health check (3x)
+                print(f"Post-update health check for {SITE_URL}...")
+                post_ok = health_check(SITE_URL, retries=3, delay=10)
+                if not post_ok:
+                    print("WARNING: Site may be down after deploy!")
+                elif not pre_ok:
+                    print("WARNING: Site was down before update, now back up.")
+            else:
+                print("Build done (--once mode, deploy handled by CI).")
         else:
             print("No changes — deploy skipped.")
 
