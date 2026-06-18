@@ -1,4 +1,4 @@
-const CACHE = 'dz-akhbar-v2';
+const CACHE = 'dz-akhbar-v3';
 const ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', e => {
