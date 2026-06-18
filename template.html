@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="description" content="{{ meta_desc }}">
+<title>{{ title }}</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#e74c3c">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Noto+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>{{ css }}</style>
+<body>
+<div class="flag-bar"></div>
+<div class="top-bar"><div class="ti">
+<div class="tb-r"><span class="clock" id="liveClock"></span>
+<button onclick="tgD()" class="dt-btn" id="dT">🌙</button></div></div></div>
+
+<div class="masthead"><div class="mh-inner">
+<div class="mh-title"><span class="red">جريـدة</span> <span class="gold">الجزائر</span></div>
+<div class="mh-meta">
+<span>📅 <span id="mhDate">{{ now_ar }}</span></span>
+<span id="weather" style="min-width:60px">🌤️ <span id="wt"></span></span>
+<span id="mhEdition">📰 العدد الرقمي • 24 ساعة</span></div></div></div>
+
+<div class="ticker"><div class="ticker-inner">
+<span class="ticker-label">⚡ عاجل</span>
+<span class="ticker-text" id="tickerText" style="cursor:pointer" title="اضغط لفتح الخبر">جاري تحميل آخر الأخبار...</span></div></div>
+
+<div class="sub-ts" id="sTs">
+<button class="sub-t active" data-t="latest" onclick="swT('latest')">📰 أحدث الأخبار</button>
+<button class="sub-t" data-t="trending" onclick="swT('trending')">🔥 الشائع</button>
+<button class="sub-t" data-t="popular" onclick="swT('popular')">⭐ الأكثر قراءة</button>
+<button class="sub-t" data-t="uni" onclick="swT('uni')">🎓 الجامعات و المعاهد</button></div>
+
+<div class="ctrls"><button class="rf-btn" onclick="rN()" id="rB">⟳ تحديث</button><span class="stats" id="aC">{{ total }} مقال</span></div>
+
+<div class="content-wrap">
+<div class="main-content">
+<div id="m-latest" class="tc active">
+<div id="ftRotate" style="transition:opacity .4s">{{ featured_dz }}</div>
+<div class="gr" id="latestG">{{ cards_latest }}</div>
+<div class="nr" id="latestNR" style="display:none">لا توجد مقالات</div></div>
+<div id="m-trending" class="tc"><div class="sl"><span class="ico">🔥</span> الشائع</div><div class="gr" id="trendingG">{{ cards_trending }}</div></div>
+<div id="m-popular" class="tc"><div class="sl"><span class="ico">⭐</span> الأكثر قراءة</div><div class="gr" id="popularG">{{ cards_popular }}</div></div>
+<div id="m-uni" class="tc"><div class="sl"><span class="ico">🎓</span> الجامعات و المعاهد</div><div class="gr" id="uniG">{{ cards_uni }}</div></div>
+</div>
+<aside class="sidebar">
+<div class="sb-widget"><div class="sb-wtitle">⭐ الأكثر قراءة</div>{{ sb_pop }}</div>
+<div class="sb-widget"><div class="sb-wtitle">❤️ مصادر مفضلة</div><div class="sb-favs" id="sbFavs"><span style="color:var(--text3);font-size:13px">اضغط على مصدر لإضافته</span></div></div>
+<div class="sb-widget sb-uni"><div class="sb-wtitle">🎓 الجامعات و المعاهد</div>{{ sb_uni }}</div>
+</aside>
+</div>
+
+<div class="ftr-sec"><div class="lk">
+<button onclick="tgD()" class="dt-btn" id="fDT" style="font-size:10px">🌙</button>
+<a onclick="sT()" id="topLink">↑ العودة إلى الأعلى</a></div>
+<p id="ftrTxt">جريدة الجزائر © 2026 — جميع المقالات مملوكة لأصحابها</p>
+<div id="amMsg" style="font-size:9px;color:var(--text3);margin-top:2px">🔄 يتجدد تلقائياً كل 5 دقائق</div></div>
+
+<div class="mod-overlay" id="articleModal" onclick="closeModal(event)">
+<div class="mod-box" onclick="event.stopPropagation()">
+<div class="mod-progress" id="modProgress"></div>
+<div class="mod-head">
+<span class="mh-src" id="modSrc" style="background:#666">مصدر</span>
+<button class="mh-close" onclick="closeModal(event)">✕</button>
+</div>
+<div class="mod-title" id="modTitle"></div>
+<div class="mod-body" id="modBody"></div>
+<div class="mod-footer">
+<a class="mod-btn mod-btn-primary" id="modOrigLink" href="#" target="_blank" rel="noopener noreferrer">📖 قراءة في المصدر الأصلي</a>
+<button class="mod-btn mod-btn-share" id="modShareBtn" onclick="shareModalArticle()" title="مشاركة">🔗</button>
+<button class="mod-btn mod-btn-secondary" onclick="closeModal(event)">✕ إغلاق</button>
+</div>
+</div>
+</div>
+
+<script>
+var CT='latest',CF='all';
+var tk={{ ticker_json }};
+var RG={{ rg_json }};
+var ftData={{ ft_json }};
+{% raw %}
+function swT(t){CT=t;
+document.querySelectorAll('.sub-t').forEach(function(tx){tx.classList.toggle('active',tx.getAttribute('data-t')===t)});
+document.querySelectorAll('.tc').forEach(function(t2){t2.classList.remove('active')});
+var el=document.getElementById('m-'+t);if(el)el.classList.add('active');
+initLM();}
+
+function sA(){var gridId={latest:'latestG',trending:'trendingG',popular:'popularG',uni:'uniG'};
+var grid=document.getElementById(gridId[CT]);if(!grid)return;var cnt=0;
+var cards=grid.querySelectorAll('.a');
+cards.forEach(function(a){a.style.display=''});cnt=cards.length;uC();}
+
+function uC(){var all=document.querySelectorAll('.a').length;
+var vis=document.querySelectorAll('.a:not([style*="display: none"])').length;
+document.getElementById('aC').textContent=vis+' / '+all+' مقال';
+document.getElementById('mhDate').textContent=new Date().toLocaleString('ar-DZ',{weekday:'long',month:'long',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});}
+
+function applyDark(d){document.body.classList.toggle('light',!d);
+document.getElementById('dT').textContent=d?'☀️':'🌙';
+document.getElementById('fDT').textContent=d?'☀️':'🌙';}
+function tgD(){var d=document.body.classList.contains('light');
+localStorage.setItem('darkMode',d);applyDark(d);}
+var savedDM=localStorage.getItem('darkMode');
+if(savedDM!==null){applyDark(savedDM==='true')}
+else{applyDark(window.matchMedia('(prefers-color-scheme: dark)').matches);
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',function(e){if(localStorage.getItem('darkMode')===null)applyDark(e.matches)});}
+
+function rN(){window.location.href=window.location.pathname+'?refresh='+Date.now()}
+function sT(){window.scrollTo({top:0,behavior:'smooth'})}
+
+(function uc(){var d=new Date();document.getElementById('liveClock').textContent=d.toLocaleTimeString('ar-DZ',{hour:'2-digit',minute:'2-digit',second:'2-digit'});setTimeout(uc,1000)})();
+
+(function(){var wd=document.getElementById('weather');
+fetch('https://wttr.in/Algiers?format=j1&lang=ar').then(function(r){return r.json()}).then(function(d){var c=d.current_condition[0];if(c){var t=c.temp_C||'--';var de=c.lang_ar?c.lang_ar[0].value:(c.weatherDesc?c.weatherDesc[0].value:'');wd.innerHTML='🌤️ '+t+'°C '+de}}).catch(function(){})})();
+
+var _tickerIdx=0;
+(function ti(){setInterval(function(){if(tk.length){_tickerIdx=(_tickerIdx+1)%tk.length;var el=document.getElementById('tickerText');if(el)el.textContent=tk[_tickerIdx].title;}},3500)})();
+
+document.getElementById('tickerText').addEventListener('click',function(){
+if(tk.length&&tk[_tickerIdx]&&tk[_tickerIdx].id){var card=document.querySelector('.ac[data-id="'+tk[_tickerIdx].id+'"],.sb-link[data-id="'+tk[_tickerIdx].id+'"]');if(card)openModal(card);}});
+
+(function rf(){var fi=0;setInterval(function(){if(!ftData||ftData.length<2)return;fi=(fi+1)%ftData.length;var d=ftData[fi];var el=document.getElementById('ftRotate');if(!el)return;var img=d.img?'<div class="ftr-img"><img src="'+d.img+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div class="ftr-overlay"></div></div>':'<div class="ftr-img ftr-no-img"><div class="ii">📰</div></div>';el.style.opacity='0';setTimeout(function(){el.innerHTML='<div class="ftr-art"><div class="ftr-inner">'+img+'<div class="ftr-body"><span class="ftr-src" style="background:'+d.sc+'">'+d.source+'</span><div class="ftr-title">'+d.title+'</div><div class="ftr-summary">'+d.summary+'</div><div class="ftr-meta"><span>'+d.pub+'</span></div></div></div></div>';el.style.opacity='1'},400)},6000)})();
+
+function initLM(){document.querySelectorAll('.lm-btn').forEach(function(b){b.remove()});
+document.querySelectorAll('.gr').forEach(function(grid){var items=grid.querySelectorAll('.a');if(items.length<=40)return;
+for(var i=40;i<items.length;i++)items[i].classList.add('lm');
+var par=grid.parentNode;var btn=document.createElement('button');
+btn.className='lm-btn';var total=items.length;
+btn.textContent='عرض المزيد ('+total+' مقال)';
+btn.onclick=function(){grid.querySelectorAll('.a.lm').forEach(function(a){a.classList.remove('lm')});this.textContent='تم عرض الكل ✓';this.disabled=true;uC();};
+par.appendChild(btn);});uC();}
+var _modLink = '';
+var _modTitle = '';
+var _modId = '';
+function openModal(el){
+var link=el.getAttribute('data-link');
+var title=el.getAttribute('data-title');
+var id=el.getAttribute('data-id');
+var source=el.getAttribute('data-source');
+var srcColor=el.getAttribute('data-src-color');
+var txt=el.getAttribute('data-txt')||'';
+var videoId=el.getAttribute('data-video');
+_modLink = link;
+_modTitle = title;
+_modId = id||'';
+document.getElementById('modSrc').textContent=source||'';
+document.getElementById('modSrc').style.background=srcColor||'#666';
+document.getElementById('modTitle').textContent=title||'';
+var bodyEl=document.getElementById('modBody');
+var html='';
+    if(videoId){html+='<div style="position:relative;padding-bottom:56.25%;height:0;background:#000;border-radius:4px;overflow:hidden"><iframe src="https://www.youtube.com/embed/'+videoId+'" style="position:absolute;inset:0;width:100%;height:100%" frameborder="0" allowfullscreen loading="lazy"></iframe></div>'}
+    else if(txt){html+='<p>'+txt.replace(/\n\n/g,'</p><p>')+'</p>'}else{html+='<p style="color:var(--text3)">⚠️ لم نتمكن من تحميل نص المقال</p>'}
+bodyEl.innerHTML=html;
+bodyEl.scrollTop=0;
+document.getElementById('modProgress').style.width='0%';
+document.getElementById('modOrigLink').href=link||'#';
+document.getElementById('modShareBtn').textContent='🔗';
+document.getElementById('modShareBtn').style.background='';
+document.getElementById('articleModal').classList.add('open');
+document.body.style.overflow='hidden';
+history.pushState({article:true},'',window.location.pathname+'#article/'+id);
+bodyEl.onscroll=function(){var pct=bodyEl.scrollTop/(bodyEl.scrollHeight-bodyEl.clientHeight)*100;
+document.getElementById('modProgress').style.width=Math.min(pct||0,100)+'%';};}
+
+function shareModalArticle(){
+var url=window.location.href;
+if(navigator.share){navigator.share({title:_modTitle,text:'شاهد هذا الخبر من جريدة الجزائر',url:url}).catch(function(){})}else{
+navigator.clipboard.writeText(url).then(function(){var btn=document.getElementById('modShareBtn');btn.textContent='✓';btn.style.background='#27ae60';btn.style.color='#fff';setTimeout(function(){btn.textContent='🔗';btn.style.background='';btn.style.color=''},1500)}).catch(function(){})}}
+
+function closeModal(e){if(e)e.stopPropagation();
+document.getElementById('articleModal').classList.remove('open');
+document.body.style.overflow='';
+document.getElementById('modBody').onscroll=null;
+history.pushState(null,'',window.location.pathname);}
+
+window.addEventListener('popstate',function(e){
+var modal=document.getElementById('articleModal');
+if(modal.classList.contains('open')){closeModal();}});
+
+(function(){
+var hash=window.location.hash;
+if(hash.indexOf('#article/')!==0)return;
+var id=hash.substring(9);
+if(!id)return;
+var tries=0;var ti=setInterval(function(){
+tries++;if(tries>30){clearInterval(ti);return}
+var card=document.querySelector('.ac[data-id="'+id+'"],.sb-link[data-id="'+id+'"]');
+if(card){clearInterval(ti);openModal(card);}
+},100);})();
+
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal(e)}});
+document.addEventListener('click',function(e){
+var t=e.target.closest('.ac[data-link],.sb-link[data-link]');if(t){openModal(t);return}
+var s=e.target.closest('.sb-btn[data-share]');if(s){e.stopPropagation();shareArticle(s);return}});
+initLM();setTimeout(initLM,200);
+if('serviceWorker' in navigator)navigator.serviceWorker.register('/service-worker.js').catch(function(){});
+
+(function hybridRefresh(){
+setInterval(function(){
+fetch('/latest_news.json?'+Date.now()).then(function(r){return r.json()}).then(function(d){
+if(!d||!d.articles||!d.articles.length)return;
+var ticker=document.getElementById('tickerText');
+if(ticker&&d.articles.length>0){
+var breaking=d.articles.filter(function(a){return a.category==='سياسة'||a.summary.indexOf('عاجل')>-1});
+if(breaking.length>0)ticker.textContent=breaking[0].title+' — '+breaking[0].source;
+}
+}).catch(function(){})},300000)})();
+{% endraw %}
+</script></body></html>

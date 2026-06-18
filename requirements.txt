@@ -1,0 +1,6 @@
+feedparser
+requests
+aiohttp
+jinja2
+readability-lxml
+deep_translator
