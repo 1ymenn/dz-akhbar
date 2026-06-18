@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from deep_translator import GoogleTranslator
 from jinja2 import Template
 
-socket.setdefaulttimeout(15)
+socket.setdefaulttimeout(20)
 ALGERIA_TZ = timezone(timedelta(hours=1))
 BASE_URL = "https://dz-akhbar.surge.sh"
 CACHE_FILE = "cache.json"
@@ -314,8 +314,21 @@ def fetch_og_image(link):
 def fetch_source(source, max_per_source):
     arts = []
     cutoff_2d = time.time() - 2*86400
+    feed = None
+    for attempt in range(3):
+        try:
+            feed = feedparser.parse(source["u"])
+            if feed and feed.entries:
+                break
+            if attempt < 2:
+                time.sleep(2)
+        except Exception:
+            if attempt < 2:
+                time.sleep(2)
+    if not feed or not feed.entries:
+        print(f"  WARN: {source['n']} returned 0 entries after 3 attempts")
+        return arts
     try:
-        feed = feedparser.parse(source["u"])
         cnt = 0
         for e in feed.entries:
             if cnt >= max_per_source:
@@ -353,7 +366,7 @@ def fetch_source(source, max_per_source):
             cnt += 1
         time.sleep(0.1)
     except Exception as ex:
-        pass
+        print(f"  ERR: {source['n']} parse error: {ex}")
     return arts
 
 def fetch_news(sources, max_per_source):
@@ -408,7 +421,7 @@ async def async_fetch_page(session, link, sem):
         return None, None
     async with sem:
         try:
-            async with session.get(link, timeout=aiohttp.ClientTimeout(total=10),
+            async with session.get(link, timeout=aiohttp.ClientTimeout(total=15),
                                    headers={"User-Agent": "Mozilla/5.0"}) as resp:
                 if resp.status == 200:
                     text = await resp.text(errors='ignore')
@@ -478,9 +491,18 @@ async def async_fetch_all(regions, max_per_source):
                         tasks.append(async_fetch_source(session, s, max_per_source, sem))
         results = await asyncio.gather(*tasks, return_exceptions=True)
         all_articles = []
-        for r in results:
+        ok_count = 0
+        fail_count = 0
+        for idx, r in enumerate(results):
             if isinstance(r, list):
                 all_articles.extend(r)
+                if r:
+                    ok_count += 1
+                else:
+                    fail_count += 1
+            else:
+                fail_count += 1
+        print(f"  Feed results: {ok_count} ok, {fail_count} empty/failed out of {len(results)}")
 
         # Phase 2: Fetch article text + video + images in parallel
         async def _enhance_article(a):
