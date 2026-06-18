@@ -243,7 +243,7 @@ def extract_text(link):
             text = re.sub(r'<[^>]+>', ' ', page_html)
             text = html_mod.unescape(text)
             text = re.sub(r'\s+', ' ', text).strip()
-            if len(text) > 50: return text[:3000]
+            if len(text) > 50: return text[:8000]
             return ""
     clean = []
     for p in paras:
@@ -258,7 +258,7 @@ def extract_text(link):
     if not clean: return ""
     text = '\n\n'.join(clean)
     if len(text) > 3000:
-        text = text[:3000]
+        text = text[:8000]
         last = max(text.rfind('.'), text.rfind('،'), text.rfind('?'), text.rfind('!'))
         if last > 1000: text = text[:last+1]
     return text
@@ -526,7 +526,7 @@ async def async_fetch_all(regions, max_per_source):
                         if len(text) >= 25:
                             clean.append(text)
                     if clean:
-                        a["text"] = '\n\n'.join(clean)[:3000]
+                        a["text"] = '\n\n'.join(clean)[:8000]
                 except:
                     pass
                 # Extract video
@@ -565,7 +565,7 @@ async def async_fetch_all(regions, max_per_source):
                         # Find the longest text chunk (likely the article body)
                         chunks = [c.strip() for c in re.split(r'[.!?؟!.\n]', raw) if len(c.strip()) > 40]
                         if chunks:
-                            a["text"] = '. '.join(chunks[:20])[:3000]
+                            a["text"] = '. '.join(chunks[:20])[:8000]
                 except:
                     pass
 
@@ -649,7 +649,7 @@ def build_articles(articles):
             ih = f'<div class="ai no-img" style="background:linear-gradient(135deg,{c1},{c2})"><div class="ii">{ic}</div></div>'
         el = sanitize_url(a["link"])
         src_esc = esc(a["source"])
-        txt = esc(a.get("text", "")[:3000])
+        txt = esc(a.get("text", "")[:8000])
         lm = " lm" if idx >= 40 else ""
         r = a.get("region", "dz")
         cat = classify_category(a["title"])
@@ -681,7 +681,7 @@ def build_sidebar_list(articles, max_items=6):
         l = sanitize_url(a["link"])
         s = esc(a["source"])
         c = a["source_color"]
-        txt = esc(a.get("text", "")[:3000])
+        txt = esc(a.get("text", "")[:8000])
         uid = hashlib.md5((a["title"] + a["link"]).encode()).hexdigest()[:8]
         vid = a.get("video")
         vid_id = ""
@@ -834,6 +834,7 @@ body.light .sb-btn:hover{background:var(--red);color:#fff;border-color:var(--red
 .mod-btn-primary{background:var(--accent);color:#fff}.mod-btn-primary:hover{background:var(--accent-hover)}
 .mod-btn-secondary{background:var(--badge-bg);color:var(--text2);border:1px solid var(--border)}.mod-btn-secondary:hover{background:#3A3A3A}
 .mod-btn-share{background:var(--badge-bg);color:var(--text2);border:1px solid var(--border);font-size:16px;padding:10px 14px;border-radius:10px;cursor:pointer;transition:all .2s}.mod-btn-share:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.mod-readmore{display:block;text-align:center;margin-top:20px;padding:12px 20px;background:var(--accent);color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;transition:all .2s}.mod-readmore:hover{opacity:.85;transform:translateY(-1px)}
 .mod-body::-webkit-scrollbar{width:6px}
 .mod-body::-webkit-scrollbar-track{background:transparent}
 .mod-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
