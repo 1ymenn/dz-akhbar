@@ -1,4 +1,5 @@
 import sys, feedparser, time, os, re, json, socket, hashlib, subprocess, requests, asyncio, aiohttp
+if hasattr(sys.stdout, 'reconfigure'): sys.stdout.reconfigure(encoding='utf-8')
 from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from deep_translator import GoogleTranslator
@@ -586,6 +587,156 @@ def safe_mktime(t):
         return 0
 
 # ============================================================
+# ARTICLE VALIDATION & REPAIR
+# ============================================================
+def validate_articles(articles, session=None):
+    """Check article quality and try to repair issues.
+    Returns dict with counts: total, no_text, no_image, by_source."""
+    stats = {"total": len(articles), "no_text": 0, "no_image": 0,
+             "by_source": {}}
+    for a in articles:
+        src = a.get("source_clean", "?")
+        if src not in stats["by_source"]:
+            stats["by_source"][src] = {"total": 0, "no_text": 0, "no_image": 0,
+                                       "text_ok": 0, "image_ok": 0}
+        stats["by_source"][src]["total"] += 1
+        txt = a.get("text")
+        img = a.get("image")
+        if not txt or len(txt.strip()) < 25:
+            stats["no_text"] += 1
+            stats["by_source"][src]["no_text"] += 1
+        else:
+            stats["by_source"][src]["text_ok"] += 1
+        if not img:
+            stats["no_image"] += 1
+            stats["by_source"][src]["no_image"] += 1
+        else:
+            stats["by_source"][src]["image_ok"] += 1
+    return stats
+
+def print_validation_report(stats):
+    no_t = stats["no_text"]
+    no_i = stats["no_image"]
+    pct_t = (stats["total"] - no_t) / max(stats["total"], 1) * 100
+    pct_i = (stats["total"] - no_i) / max(stats["total"], 1) * 100
+    print(f"\n{'='*50}")
+    print(f" [VALIDATION] Article Quality Report")
+    print(f"{'='*50}")
+    print(f" Total articles : {stats['total']}")
+    print(f" With text     : {stats['total'] - no_t}/{stats['total']} ({pct_t:.0f}%)")
+    print(f" With image    : {stats['total'] - no_i}/{stats['total']} ({pct_i:.0f}%)")
+    for src in sorted(stats["by_source"]):
+        s = stats["by_source"][src]
+        if s["no_text"] > 0 or s["no_image"] > 0:
+            issues = []
+            if s["no_text"] > 0:
+                issues.append(f"no_text={s['no_text']}")
+            if s["no_image"] > 0:
+                issues.append(f"no_image={s['no_image']}")
+            print(f"  [{src}] {s['total']} articles - {', '.join(issues)}")
+    print(f" {'='*50}\n")
+
+def validate_live_site(url="https://dz-akhbar.surge.sh"):
+    """Pre-update health check - verify live site is working."""
+    import urllib.request
+    import urllib.error
+    print(f"  Pre-update check: {url}...")
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                body = resp.read()
+                if len(body) > 1000 and resp.status == 200:
+                    print(f"  Live site: OK ({resp.status}, {len(body)} bytes)")
+                    return True
+                else:
+                    print(f"  Live site: SMALL/BAD ({len(body)} bytes)")
+        except Exception as e:
+            print(f"  Attempt {attempt+1}: {e}")
+        if attempt < 2:
+            time.sleep(5)
+    print(f"  WARNING: Live site unreachable!")
+    return False
+
+async def repair_missing_text(articles):
+    """Re-fetch articles with missing text using aggressive extraction."""
+    sem = asyncio.Semaphore(10)
+    connector = aiohttp.TCPConnector(limit=15, force_close=True)
+    async with aiohttp.ClientSession(connector=connector) as session:
+        async def _repair_one(a):
+            link = a.get("link")
+            if not link or a.get("text", "").strip():
+                return
+            html, _ = await async_fetch_page(session, link, sem)
+            if not html:
+                return
+            # Try readability first
+            try:
+                from readability import Document
+                doc = Document(html)
+                ch = doc.summary()
+                paras = re.findall(r'<p[^>]*>(.*?)</p>', ch, re.DOTALL|re.IGNORECASE)
+                clean = []
+                for p in paras:
+                    text = re.sub(r'<[^>]+>', ' ', p)
+                    import html as html_mod
+                    text = html_mod.unescape(text)
+                    text = re.sub(r'\s+', ' ', text).strip()
+                    if len(text) >= 25:
+                        clean.append(text)
+                if clean:
+                    a["text"] = '\n\n'.join(clean)[:8000]
+                    return
+            except:
+                pass
+            # Aggressive: extract <article> or <main> content
+            for tag in [r'<article[^>]*>(.*?)</article>', r'<main[^>]*>(.*?)</main>',
+                        r'<div[^>]*class="[^"]*(?:article|content|post|entry|story|text|body|detail)[^"]*"[^>]*>(.*?)</div>']:
+                m = re.search(tag, html, re.DOTALL | re.IGNORECASE)
+                if m:
+                    raw = re.sub(r'<script[^>]*>.*?</script>', '', m.group(1), flags=re.DOTALL)
+                    raw = re.sub(r'<style[^>]*>.*?</style>', '', raw, flags=re.DOTALL)
+                    raw = re.sub(r'<[^>]+>', ' ', raw)
+                    import html as html_mod
+                    raw = html_mod.unescape(raw)
+                    raw = re.sub(r'\s+', ' ', raw).strip()
+                    chunks = [c.strip() for c in re.split(r'[.!?؟!.\n]', raw) if len(c.strip()) > 40]
+                    if chunks:
+                        a["text"] = '. '.join(chunks[:20])[:8000]
+                        return
+            # Last resort: full page text
+            raw = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL)
+            raw = re.sub(r'<style[^>]*>.*?</style>', '', raw, flags=re.DOTALL)
+            raw = re.sub(r'<[^>]+>', ' ', raw)
+            import html as html_mod
+            raw = html_mod.unescape(raw)
+            raw = re.sub(r'\s+', ' ', raw).strip()
+            chunks = [c.strip() for c in re.split(r'[.!?؟!.\n]', raw) if len(c.strip()) > 40]
+            if chunks:
+                a["text"] = '. '.join(chunks[:20])[:8000]
+        tasks = [_repair_one(a) for a in articles if not a.get("text", "").strip()]
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+async def repair_missing_image(articles):
+    """Re-fetch articles with missing images using more extraction patterns."""
+    sem = asyncio.Semaphore(10)
+    connector = aiohttp.TCPConnector(limit=15, force_close=True)
+    async with aiohttp.ClientSession(connector=connector) as session:
+        async def _repair_one(a):
+            link = a.get("link")
+            if not link or a.get("image"):
+                return
+            html, _ = await async_fetch_page(session, link, sem)
+            if html:
+                img = _extract_og_from_html(html, link)
+                if img:
+                    a["image"] = img
+        tasks = [_repair_one(a) for a in articles if not a.get("image") and a.get("link")]
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+# ============================================================
 # HYBRID: latest_news.json for client-side refresh
 # ============================================================
 def generate_latest_json(articles, base_dir):
@@ -845,6 +996,11 @@ body.light .sb-btn:hover{background:var(--red);color:#fff;border-color:var(--red
 def main():
     base = os.path.dirname(os.path.abspath(__file__))
     load_cache()
+
+    # Pre-flight: Check live site health
+    if "--skip-check" not in sys.argv:
+        validate_live_site()
+
     print("=" * 50)
     print(" News Aggregator - dz-akhbar (async)")
     print("=" * 50)
@@ -854,6 +1010,21 @@ def main():
     all_articles = asyncio.run(async_fetch_all(REGIONS, max_per_source=15))
     fetch_time = time.time() - t0
     print(f"Fetched {len(all_articles)} articles in {fetch_time:.1f}s (async)")
+
+    # Validate fetched articles
+    stats = validate_articles(all_articles)
+    print_validation_report(stats)
+    if stats["no_text"] > 0:
+        print(f"  Repairing {stats['no_text']} articles with missing text...")
+        asyncio.run(repair_missing_text(all_articles))
+    if stats["no_image"] > 0:
+        print(f"  Repairing {stats['no_image']} articles with missing images...")
+        asyncio.run(repair_missing_image(all_articles))
+    # Second validation after repair
+    stats2 = validate_articles(all_articles)
+    repaired_text = stats["no_text"] - stats2["no_text"]
+    repaired_img = stats["no_image"] - stats2["no_image"]
+    print(f"  Repair results: {repaired_text} text fixed, {repaired_img} images fixed ({stats2['no_text']} text, {stats2['no_image']} images still missing)")
 
     # Organize into regions/categories
     result = {"dz": {"latest":[], "trending":[], "popular":[], "uni":[]},
@@ -1014,9 +1185,6 @@ if __name__ == "__main__":
     SITE_URL = "https://dz-akhbar.surge.sh"
     once = "--once" in sys.argv
     while True:
-        # Pre-update health check (3x)
-        print(f"Pre-update health check for {SITE_URL}...")
-        pre_ok = health_check(SITE_URL, retries=3, delay=10)
 
         t0 = time.time()
         changed = main()
@@ -1038,8 +1206,6 @@ if __name__ == "__main__":
                 post_ok = health_check(SITE_URL, retries=3, delay=10)
                 if not post_ok:
                     print("WARNING: Site may be down after deploy!")
-                elif not pre_ok:
-                    print("WARNING: Site was down before update, now back up.")
             else:
                 print("Build done (--once mode, deploy handled by CI).")
         else:
