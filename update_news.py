@@ -955,6 +955,7 @@ def main():
 
     with open(os.path.join(base, TEMPLATE_FILE), "r", encoding="utf-8") as f:
         tmpl = Template(f.read())
+    build_timestamp = int(time.time())
     html = tmpl.render(
         css=CSS, title="جريدة الجزائر — aggregator الأخبار الجزائرية",
         meta_desc="أخبار الجزائر العاجلة من أشهر الصحف الجزائرية: الشروق، النهار، الخبر، البلاد، الحوار + أخبار الجامعات و المعاهد",
@@ -964,6 +965,7 @@ def main():
         featured_dz=featured_dz,
         rg_json=rg_json, ticker_json=ticker_json, ft_json=ft_json,
         sb_pop=sb_pop, sb_uni=sb_uni,
+        build_timestamp=build_timestamp,
     )
 
     outpath = os.path.join(base, "index.html")

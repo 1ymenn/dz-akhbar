@@ -55,7 +55,7 @@
 <button onclick="tgD()" class="dt-btn" id="fDT" style="font-size:10px">🌙</button>
 <a onclick="sT()" id="topLink">↑ العودة إلى الأعلى</a></div>
 <p id="ftrTxt">جريدة الجزائر © 2026 — جميع المقالات مملوكة لأصحابها</p>
-<div id="amMsg" style="font-size:9px;color:var(--text3);margin-top:2px">🔄 يتجدد تلقائياً كل 5 دقائق</div></div>
+<div id="amMsg" style="font-size:10px;color:var(--text3);margin-top:2px">🕐 آخر تحديث: <span id="updateTime">{{ now_ar }}</span> — <span id="sinceUpdate">منذ 0 دقيقة</span></div></div>
 
 <div class="mod-overlay" id="articleModal" onclick="closeModal(event)">
 <div class="mod-box" onclick="event.stopPropagation()">
@@ -76,6 +76,9 @@
 
 <script>
 var CT='latest',CF='all';
+var bt={{ build_timestamp }};
+function upSince(){var el=document.getElementById('sinceUpdate');if(!el||!bt)return;var s=Math.floor((Date.now()-bt*1e3)/1e3);if(s<60){el.textContent='منذ لحظات';return}var m=Math.floor(s/60);if(m<60){el.textContent='منذ '+m+' دقيقة';return}var h=Math.floor(m/60);if(h<24){el.textContent='منذ '+h+' ساعة';return}var d=Math.floor(h/24);el.textContent='منذ '+d+' يوم'}
+setInterval(upSince,3e4);upSince();
 var tk={{ ticker_json }};
 var RG={{ rg_json }};
 var ftData={{ ft_json }};
