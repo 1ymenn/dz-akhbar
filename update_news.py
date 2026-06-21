@@ -44,6 +44,25 @@ def translate(text):
         pass
     return text, False
 
+def _text_matches_title(text, title):
+    """Check if extracted text is likely from the same article as the title."""
+    if not title or not text:
+        return False
+    words = re.findall(r'[\u0600-\u06FF]{3,}|[a-zA-Z]{4,}', title)
+    if not words:
+        return True
+    text_lower = text.lower()
+    match_count = 0
+    for w in words:
+        w_lower = w.lower()
+        if w_lower in text_lower:
+            match_count += 1
+        else:
+            stripped = re.sub(r'^(ال|لل|ب|ل|و|ف)', '', w_lower)
+            if stripped and len(stripped) >= 2 and stripped in text_lower:
+                match_count += 1
+    return match_count >= max(1, int(len(words) * 0.3))
+
 DZ_LATEST = [
     {"n":"الشروق","u":"https://www.echoroukonline.com/feed/","c":"#c0392b"},
     {"n":"النهار","u":"https://www.ennaharonline.com/feed/","c":"#2980b9"},
@@ -349,8 +368,6 @@ def fetch_source(source, max_per_source):
             if not img:
                 img = fetch_og_image(l)
             sm = re.sub(r'<[^>]+>', '', sm).strip()
-            if len(sm) > 200:
-                sm = sm[:200] + "..."
             translated_flag = ""
             if not is_arabic(source["n"]):
                 new_t, was_t = translate(t)
@@ -527,7 +544,9 @@ async def async_fetch_all(regions, max_per_source):
                         if len(text) >= 25:
                             clean.append(text)
                     if clean:
-                        a["text"] = '\n\n'.join(clean)[:8000]
+                        txt = '\n\n'.join(clean)[:8000]
+                        if _text_matches_title(txt, a.get("title", "")):
+                            a["text"] = txt
                 except:
                     pass
                 # Extract video
@@ -547,10 +566,13 @@ async def async_fetch_all(regions, max_per_source):
         tasks = [_enhance_article(a) for a in all_articles if a.get("link")]
         await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Fallback: if text is empty, use RSS summary
+        # Fallback: if text is empty, use RSS summary (if it has real content)
         for a in all_articles:
             if not a.get("text") and a.get("summary"):
-                a["text"] = a["summary"]
+                sm = a["summary"]
+                arabic_words = re.findall(r'[\u0600-\u06FF]{3,}', sm)
+                if len(sm) >= 50 or len(arabic_words) >= 3:
+                    a["text"] = sm
             # Last resort: try simple extraction from page
             if not a.get("text") and a.get("link"):
                 try:
@@ -566,7 +588,9 @@ async def async_fetch_all(regions, max_per_source):
                         # Find the longest text chunk (likely the article body)
                         chunks = [c.strip() for c in re.split(r'[.!?؟!.\n]', raw) if len(c.strip()) > 40]
                         if chunks:
-                            a["text"] = '. '.join(chunks[:20])[:8000]
+                            txt = '. '.join(chunks[:20])[:8000]
+                            if _text_matches_title(txt, a.get("title", "")):
+                                a["text"] = txt
                 except:
                     pass
 
@@ -685,8 +709,10 @@ async def repair_missing_text(articles):
                     if len(text) >= 25:
                         clean.append(text)
                 if clean:
-                    a["text"] = '\n\n'.join(clean)[:8000]
-                    return
+                    txt = '\n\n'.join(clean)[:8000]
+                    if _text_matches_title(txt, a.get("title", "")):
+                        a["text"] = txt
+                        return
             except:
                 pass
             # Aggressive: extract <article> or <main> content
@@ -702,8 +728,10 @@ async def repair_missing_text(articles):
                     raw = re.sub(r'\s+', ' ', raw).strip()
                     chunks = [c.strip() for c in re.split(r'[.!?؟!.\n]', raw) if len(c.strip()) > 40]
                     if chunks:
-                        a["text"] = '. '.join(chunks[:20])[:8000]
-                        return
+                        txt = '. '.join(chunks[:20])[:8000]
+                        if _text_matches_title(txt, a.get("title", "")):
+                            a["text"] = txt
+                            return
             # Last resort: full page text
             raw = re.sub(r'<script[^>]*>.*?</script>', '', html, flags=re.DOTALL)
             raw = re.sub(r'<style[^>]*>.*?</style>', '', raw, flags=re.DOTALL)
@@ -713,7 +741,9 @@ async def repair_missing_text(articles):
             raw = re.sub(r'\s+', ' ', raw).strip()
             chunks = [c.strip() for c in re.split(r'[.!?؟!.\n]', raw) if len(c.strip()) > 40]
             if chunks:
-                a["text"] = '. '.join(chunks[:20])[:8000]
+                txt = '. '.join(chunks[:20])[:8000]
+                if _text_matches_title(txt, a.get("title", "")):
+                    a["text"] = txt
         tasks = [_repair_one(a) for a in articles if not a.get("text", "").strip()]
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
