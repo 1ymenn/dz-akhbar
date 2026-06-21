@@ -63,6 +63,29 @@ def _text_matches_title(text, title):
                 match_count += 1
     return match_count >= max(1, int(len(words) * 0.3))
 
+def _clean_fluff(text):
+    """Remove promotional/fluff paragraphs from article text."""
+    if not text:
+        return text
+    fluff = ['اشترك في قناتنا', 'قناة الخبرTV', 'التواصل الاجتماعي', 'رابط مختصر',
+             'تم نسخ الرابط', 'إضغط على الصورة', 'تحميل تطبيق', 'بلاي ستور',
+             'google play', 'PLAY STORE', 'تطبيق النهار', 'شـارك', 'نشر الخبر',
+             'اضغط هنا', 'انشر الخبر', 'شارك في التعليقات', 'علّق على الخبر',
+             'شارك غرِّد أرسل', 'غرِّد أرسل', 'للإطلاع على كل الآخبار']
+    paras = text.split('\n\n')
+    clean = []
+    for p in paras:
+        p_stripped = p.strip()
+        # Skip paragraphs that are purely fluff
+        if any(f.lower() in p_stripped.lower() for f in fluff):
+            continue
+        # Skip very short paragraphs with fluff
+        if len(p_stripped) < 30 and any(f.lower() in p_stripped.lower() for f in fluff):
+            continue
+        clean.append(p)
+    result = '\n\n'.join(clean).strip()
+    return result if len(result) > 50 else ""
+
 DZ_LATEST = [
     {"n":"الشروق","u":"https://www.echoroukonline.com/feed/","c":"#c0392b"},
     {"n":"النهار","u":"https://www.ennaharonline.com/feed/","c":"#2980b9"},
@@ -425,6 +448,9 @@ def fetch_news(sources, max_per_source):
                     vid_futures[f]["video"] = vid
             except:
                 pass
+    for a in arts:
+        if a.get("text"):
+            a["text"] = _clean_fluff(a["text"])
     return arts
 
 # ============================================================
@@ -632,6 +658,11 @@ async def async_fetch_all(regions, max_per_source):
                                 a["text"] = txt
                 except:
                     pass
+
+        # Clean fluff from all article text
+        for a in all_articles:
+            if a.get("text"):
+                a["text"] = _clean_fluff(a["text"])
 
         return all_articles
 
