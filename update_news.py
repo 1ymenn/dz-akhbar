@@ -52,6 +52,10 @@ def _text_matches_title(text, title):
     if not words:
         return True
     text_lower = text.lower()
+    title_lower = title.lower()
+    # Strong check: first 80 chars of title should appear in text
+    if title_lower[:80] in text_lower:
+        return True
     match_count = 0
     for w in words:
         w_lower = w.lower()
@@ -61,7 +65,7 @@ def _text_matches_title(text, title):
             stripped = re.sub(r'^(ال|لل|ب|ل|و|ف)', '', w_lower)
             if stripped and len(stripped) >= 2 and stripped in text_lower:
                 match_count += 1
-    return match_count >= max(1, int(len(words) * 0.3))
+    return match_count >= max(1, int(len(words) * 0.5))
 
 def _clean_fluff(text):
     """Remove promotional/fluff from article text."""
@@ -249,6 +253,28 @@ import html as html_mod
 def extract_text(link):
     page_html, _ = fetch_page(link)
     if not page_html: return ""
+    # First try JSON-LD articleBody
+    try:
+        ld_matches = re.findall(r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', page_html, re.DOTALL)
+        for ld in ld_matches:
+            try:
+                data = json.loads(ld)
+                if isinstance(data, dict) and 'articleBody' in data:
+                    body = data['articleBody']
+                    if len(body) > 100:
+                        return body[:8000]
+            except:
+                pass
+    except:
+        pass
+    # Try meta description (save for later fallback)
+    meta_desc_text = ""
+    try:
+        meta_desc = re.search(r'<meta[^>]+(?:name|property)=["\'](?:description|og:description)["\'][^>]+content=["\']([^"\']+)["\']', page_html, re.IGNORECASE)
+        if meta_desc:
+            meta_desc_text = html_mod.unescape(meta_desc.group(1)).strip()
+    except:
+        pass
     try:
         doc = Document(page_html)
         content_html = doc.summary()
@@ -311,7 +337,7 @@ def extract_text(link):
             text = html_mod.unescape(text)
             text = re.sub(r'\s+', ' ', text).strip()
             if len(text) > 50: return text[:8000]
-            return ""
+            return meta_desc_text[:8000] if meta_desc_text else ""
     clean = []
     for p in paras:
         text = re.sub(r'<[^>]+>', ' ', p)
@@ -322,7 +348,8 @@ def extract_text(link):
         if re.match(r'^(شارك|غرّد|أرسل|طباعة|إرسال)\s', text) and len(text) < 80: continue
         if sum(1 for c in text if c.isdigit()) / max(len(text), 1) > 0.5 and len(text) < 50: continue
         clean.append(text)
-    if not clean: return ""
+    if not clean:
+        return meta_desc_text[:8000] if meta_desc_text else ""
     text = '\n\n'.join(clean)
     if len(text) > 3000:
         text = text[:8000]
@@ -615,8 +642,8 @@ async def async_fetch_all(regions, max_per_source):
                     pass
                 # Fallback: targeted article selectors
                 if not a.get("text"):
-                    for sel in [r'<article[^>]*>(.*?)</article>',
-                                r'<div[^>]*class="[^"]*(?:article-body|article-content|entry-content|post-content|story-body|article__body)[^"]*"[^>]*>(.*?)</div>']:
+                    for sel in [r'<div[^>]*class="[^"]*(?:article-body|article-content|entry-content|post-content|story-body|article__body)[^"]*"[^>]*>(.*?)</div>',
+                                r'<article[^>]*>(.*?)</article>']:
                         m = re.search(sel, html, re.DOTALL|re.IGNORECASE)
                         if m:
                             raw = re.sub(r'<script[^>]*>.*?</script>', '', m.group(1), flags=re.DOTALL)
@@ -631,9 +658,22 @@ async def async_fetch_all(regions, max_per_source):
                                     clean.append(text)
                             if clean:
                                 txt = '\n\n'.join(clean)[:8000]
-                                if _text_matches_title(txt, a.get("title", "")):
+                                # Strong check: article title must appear at start of text
+                                title_str = a.get("title", "")
+                                title_lower = title_str.lower()
+                                txt_lower = txt.lower()
+                                # Check if title appears in first 200 chars
+                                if title_lower[:50] in txt_lower[:200]:
                                     a["text"] = txt
                                     break
+                                # Or first paragraph contains 60%+ title words
+                                first_para = clean[0].lower() if clean else ""
+                                title_words = re.findall(r'[\u0600-\u06FF]{3,}', title_str)
+                                if title_words and first_para:
+                                    matches = sum(1 for w in title_words if w.lower() in first_para)
+                                    if matches >= len(title_words) * 0.6:
+                                        a["text"] = txt
+                                        break
                                 clean = []
                 # Fallback: readability with title validation
                 if not a.get("text"):
@@ -651,10 +691,26 @@ async def async_fetch_all(regions, max_per_source):
                                 clean.append(text)
                         if clean:
                             txt = '\n\n'.join(clean)[:8000]
-                            if _text_matches_title(txt, a.get("title", "")):
+                            # Strong check: title must appear in first 200 chars
+                            title_str = a.get("title", "")
+                            if title_str.lower()[:50] in txt.lower()[:200]:
                                 a["text"] = txt
+                            elif _text_matches_title(txt, title_str):
+                                first_para = clean[0].lower()
+                                title_words = re.findall(r'[\u0600-\u06FF]{3,}', title_str)
+                                if title_words:
+                                    matches = sum(1 for w in title_words if w.lower() in first_para)
+                                    if matches >= len(title_words) * 0.6:
+                                        a["text"] = txt
                     except:
                         pass
+                # Fallback: meta description
+                if not a.get("text"):
+                    meta_desc = re.search(r'<meta[^>]+(?:name|property)=["\'](?:description|og:description)["\'][^>]+content=["\']([^"\']+)["\']', html, re.IGNORECASE)
+                    if meta_desc:
+                        desc = html_mod.unescape(meta_desc.group(1)).strip()
+                        if len(desc) > 50:
+                            a["text"] = desc[:8000]
                 # Extract video
                 m = re.search(r'youtube\.com/embed/([a-zA-Z0-9_-]+)', html, re.IGNORECASE)
                 if not m:
