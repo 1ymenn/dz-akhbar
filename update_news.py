@@ -1209,6 +1209,14 @@ def main():
     merged["trending"] = merged["latest"][:]
     merged["popular"] = merged["latest"][:]
 
+    # Remove articles without images before publishing
+    for k in list(merged.keys()):
+        before = len(merged[k])
+        merged[k] = [a for a in merged[k] if a.get("image")]
+        after = len(merged[k])
+        if before != after:
+            print(f"  Filtered {k}: {before} -> {after} (removed {before - after} without images)")
+
     print(f"\nRendering template...")
     now_ar = datetime.now().strftime("%A, %d %B %Y - %I:%M %p")
     dz_total = len(merged["latest"])
