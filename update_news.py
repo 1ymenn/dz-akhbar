@@ -452,7 +452,9 @@ def fetch_news(sources, max_per_source):
         for f in as_completed(txt_futures):
             try:
                 txt = f.result()
-                txt_futures[f]["text"] = txt
+                a = txt_futures[f]
+                if txt and _text_matches_title(txt, a.get("title", "")):
+                    a["text"] = txt
             except:
                 pass
         # Fallback: if text is empty, use RSS summary
@@ -533,6 +535,21 @@ def _extract_og_from_html(html, link):
             img_url = strip_wp_thumb(m.group(1))
             if not _reject.search(img_url):
                 return clean_url(img_url)
+    # Check JSON-LD for image
+    ld_matches = re.findall(r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', html, re.DOTALL)
+    for ld in ld_matches:
+        try:
+            data = json.loads(ld)
+            if isinstance(data, dict):
+                img = data.get("image", "")
+                if isinstance(img, list) and img:
+                    img = img[0]
+                if isinstance(img, str) and img:
+                    img_url = strip_wp_thumb(img)
+                    if not _reject.search(img_url):
+                        return clean_url(img_url)
+        except:
+            pass
     imgs = re.findall(r'<img[^>]+src\s*=\s*"([^"]+\.(?:jpg|jpeg|png|gif|webp))"', html, re.IGNORECASE)
     for i in imgs:
         i = strip_wp_thumb(i)
