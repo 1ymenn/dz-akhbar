@@ -529,26 +529,65 @@ async def async_fetch_all(regions, max_per_source):
                 return
             html, _ = await async_fetch_page(session, link, sem)
             if html:
-                # Extract text
+                # Extract text: try JSON-LD articleBody first (most reliable)
                 try:
-                    from readability import Document
-                    doc = Document(html)
-                    content_html = doc.summary()
-                    paras = re.findall(r'<p[^>]*>(.*?)</p>', content_html, re.DOTALL|re.IGNORECASE)
-                    clean = []
-                    for p in paras:
-                        text = re.sub(r'<[^>]+>', ' ', p)
-                        import html as html_mod
-                        text = html_mod.unescape(text)
-                        text = re.sub(r'\s+', ' ', text).strip()
-                        if len(text) >= 25:
-                            clean.append(text)
-                    if clean:
-                        txt = '\n\n'.join(clean)[:8000]
-                        if _text_matches_title(txt, a.get("title", "")):
-                            a["text"] = txt
+                    import html as html_mod
+                    ld_blocks = re.findall(r'<script[^>]*type="application/ld\+json"[^>]*>(.*?)</script>', html, re.DOTALL|re.IGNORECASE)
+                    for block in ld_blocks:
+                        try:
+                            ld = json.loads(block)
+                            if isinstance(ld, list):
+                                ld = ld[0] if ld else {}
+                            body = ld.get("articleBody", "")
+                            if body and len(body) > 50:
+                                a["text"] = body[:8000]
+                                break
+                        except:
+                            pass
                 except:
                     pass
+                # Fallback: targeted article selectors for news sites
+                if not a.get("text"):
+                    for sel in [r'<article[^>]*>(.*?)</article>',
+                                r'<div[^>]*class="[^"]*(?:article-body|article-content|entry-content|post-content|story-body)[^"]*"[^>]*>(.*?)</div>',
+                                r'<div[^>]*class="[^"]*(?:field--name-body|node__content)[^"]*"[^>]*>(.*?)</div>']:
+                        m = re.search(sel, html, re.DOTALL|re.IGNORECASE)
+                        if m:
+                            raw = re.sub(r'<script[^>]*>.*?</script>', '', m.group(1), flags=re.DOTALL)
+                            raw = re.sub(r'<style[^>]*>.*?</style>', '', raw, flags=re.DOTALL)
+                            paras = re.findall(r'<p[^>]*>(.*?)</p>', raw, re.DOTALL|re.IGNORECASE)
+                            clean = []
+                            for p in paras:
+                                text = re.sub(r'<[^>]+>', ' ', p)
+                                text = html_mod.unescape(text)
+                                text = re.sub(r'\s+', ' ', text).strip()
+                                if len(text) >= 25:
+                                    clean.append(text)
+                            if clean:
+                                txt = '\n\n'.join(clean)[:8000]
+                                if _text_matches_title(txt, a.get("title", "")):
+                                    a["text"] = txt
+                                    break
+                # Fallback: readability with title validation
+                if not a.get("text"):
+                    try:
+                        from readability import Document
+                        doc = Document(html)
+                        content_html = doc.summary()
+                        paras = re.findall(r'<p[^>]*>(.*?)</p>', content_html, re.DOTALL|re.IGNORECASE)
+                        clean = []
+                        for p in paras:
+                            text = re.sub(r'<[^>]+>', ' ', p)
+                            text = html_mod.unescape(text)
+                            text = re.sub(r'\s+', ' ', text).strip()
+                            if len(text) >= 25:
+                                clean.append(text)
+                        if clean:
+                            txt = '\n\n'.join(clean)[:8000]
+                            if _text_matches_title(txt, a.get("title", "")):
+                                a["text"] = txt
+                    except:
+                        pass
                 # Extract video
                 m = re.search(r'youtube\.com/embed/([a-zA-Z0-9_-]+)', html, re.IGNORECASE)
                 if not m:
