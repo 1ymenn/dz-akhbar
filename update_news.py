@@ -546,7 +546,7 @@ async def async_fetch_all(regions, max_per_source):
                             pass
                 except:
                     pass
-                # Fallback: targeted article selectors (require 3+ paragraphs to avoid sidebar matches)
+                # Fallback: targeted article selectors
                 if not a.get("text"):
                     for sel in [r'<article[^>]*>(.*?)</article>',
                                 r'<div[^>]*class="[^"]*(?:article-body|article-content|entry-content|post-content|story-body|article__body)[^"]*"[^>]*>(.*?)</div>']:
@@ -562,12 +562,11 @@ async def async_fetch_all(regions, max_per_source):
                                 text = re.sub(r'\s+', ' ', text).strip()
                                 if len(text) >= 25:
                                     clean.append(text)
-                            if len(clean) >= 3:
+                            if clean:
                                 txt = '\n\n'.join(clean)[:8000]
                                 if _text_matches_title(txt, a.get("title", "")):
                                     a["text"] = txt
                                     break
-                            else:
                                 clean = []
                 # Fallback: readability with title validation
                 if not a.get("text"):
