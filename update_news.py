@@ -64,27 +64,51 @@ def _text_matches_title(text, title):
     return match_count >= max(1, int(len(words) * 0.3))
 
 def _clean_fluff(text):
-    """Remove promotional/fluff paragraphs from article text."""
+    """Remove promotional/fluff from article text."""
     if not text:
         return text
-    fluff = ['اشترك في قناتنا', 'قناة الخبرTV', 'التواصل الاجتماعي', 'رابط مختصر',
-             'تم نسخ الرابط', 'إضغط على الصورة', 'تحميل تطبيق', 'بلاي ستور',
-             'google play', 'PLAY STORE', 'تطبيق النهار', 'شـارك', 'نشر الخبر',
-             'اضغط هنا', 'انشر الخبر', 'شارك في التعليقات', 'علّق على الخبر',
-             'شارك غرِّد أرسل', 'غرِّد أرسل', 'للإطلاع على كل الآخبار']
+    fluff_starts = ['شارك غرِّد أرسل', 'غرِّد أرسل', 'شارك غرّد', 'غرّد أرسل',
+                    'شـارك', 'نشر الخبر', 'انشر الخبر']
+    fluff_full = ['التواصل الاجتماعي', 'رابط مختصر', 'تم نسخ الرابط',
+                  'شـارك', 'اضغط هنا', 'شارك في التعليقات', 'علّق على الخبر']
+    # Regex patterns to remove from end of text
+    fluff_end_re = [
+        r'[\n\s]*إضغط\s+على\s+الصورة\s+لتحميل\s+تطبيق\s+النهار.*$',
+        r'[\n\s]*إضغط\s+على\s+الصورة\s+لتحميل\s+تطبيق.*$',
+        r'[\n\s]*إضغط\s+على\s+الصورة.*$',
+        r'[\n\s]*للإطلاع\s+على\s+كل\s+الأخبار.*$',
+        r'[\n\s]*على\s+البلاي\s+ستور.*$',
+        r'[\n\s]*بلاي\s+ستور.*$',
+        r'[\n\s]*PLAY\s+STORE.*$',
+        r'[\n\s]*google\s+play.*$',
+        r'[\n\s]*اشترك\s+في\s+قناتنا\s+على\s+يوتيوب.*$',
+        r'[\n\s]*اشترك\s+في\s+قناتنا.*$',
+        r'[\n\s]*قناة\s+الخبرTV.*$',
+    ]
+    
     paras = text.split('\n\n')
     clean = []
     for p in paras:
         p_stripped = p.strip()
-        # Skip paragraphs that are purely fluff
-        if any(f.lower() in p_stripped.lower() for f in fluff):
+        # Skip entire paragraph if it's ONLY fluff
+        if any(p_stripped.lower() == f.lower() for f in fluff_full):
             continue
-        # Skip very short paragraphs with fluff
-        if len(p_stripped) < 30 and any(f.lower() in p_stripped.lower() for f in fluff):
+        # Clean fluff from beginning
+        for fs in fluff_starts:
+            if p_stripped.lower().startswith(fs.lower()):
+                p_stripped = re.sub(r'^' + re.escape(fs) + r'[\s\d]*', '', p_stripped).strip()
+                break
+        # Clean fluff from end using regex
+        for fe_re in fluff_end_re:
+            p_stripped = re.sub(fe_re, '', p_stripped).strip()
+        # Clean trailing punctuation
+        p_stripped = p_stripped.rstrip('،.:- ')
+        # Skip empty or very short paragraphs after cleaning
+        if len(p_stripped) < 15:
             continue
-        clean.append(p)
+        clean.append(p_stripped)
     result = '\n\n'.join(clean).strip()
-    return result if len(result) > 50 else ""
+    return result if len(result) > 10 else ""
 
 DZ_LATEST = [
     {"n":"الشروق","u":"https://www.echoroukonline.com/feed/","c":"#c0392b"},
