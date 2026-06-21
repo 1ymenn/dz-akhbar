@@ -96,7 +96,7 @@ DZ_UNI = [
     {"n":"جامعة عنابة","u":"https://www.univ-annaba.dz/feed/","c":"#2e86c1"},
     {"n":"جامعة تلمسان","u":"https://www.univ-tlemcen.dz/feed/","c":"#117a65"},
     {"n":"جامعة قسنطينة 1","u":"https://www.umc.edu.dz/feed/","c":"#7d3c98"},
-    {"n":"جامعة البليدة 1","u":"https://www.univ-blida.dz/feed/","c":"#d4ac0d"},
+    {"n":"جامعة البليدة 2","u":"https://www.univ-blida2.dz/feed/","c":"#d4ac0d"},
     {"n":"جامعة بومرداس","u":"https://www.univ-boumerdes.dz/feed/","c":"#c0392b"},
     {"n":"جامعة ورقلة","u":"https://www.univ-ouargla.dz/feed/","c":"#e67e22"},
     {"n":"جامعة بسكرة","u":"https://www.univ-biskra.dz/feed/","c":"#16a085"},
