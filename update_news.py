@@ -923,8 +923,11 @@ def build_articles(articles):
             ic = ["📰","📋","📌","🔖","📊","📈","📑","🗞️"][hash(t) % 8]
             ih = f'<div class="ai no-img" style="background:linear-gradient(135deg,{c1},{c2})"><div class="ii">{ic}</div></div>'
         el = sanitize_url(a["link"])
-        src_esc = esc(a["source"])
-        txt = esc(a.get("text", "")[:8000])
+        sc = esc(a["source"])
+        raw_txt = a.get("text", "")
+        if raw_txt:
+            raw_txt = _clean_fluff(raw_txt)
+        txt = esc(raw_txt[:8000])
         lm = " lm" if idx >= 40 else ""
         r = a.get("region", "dz")
         cat = classify_category(a["title"])
@@ -935,7 +938,7 @@ def build_articles(articles):
             vid_id = vid[1][:50]
         vid_attr = f' data-video="{vid_id}"' if vid_id else ""
         vid_icon = '<div class="vi">▶</div>' if vid else ""
-        cards += f'<div class="a{lm}" data-t="{t.lower()}" data-s="{a["source_clean"].lower()}" data-r="{r}" data-cat="{cat}"><div class="ac" data-id="{uid}" data-link="{el}" data-title="{t}" data-source="{src_esc}" data-src-color="{a["source_color"]}" data-txt="{txt}"{vid_attr}>{ih}{vid_icon}<div class="ab"><div class="am"><span class="as" style="background:{a["source_color"]}">{src_esc}</span><span class="ad">{esc(a["published"][:16])}</span></div><div class="at">{t}</div><div class="ae">{sm}</div></div></div><div class="sb-btn" data-share="1" title="مشاركة">↗</div></div>'
+        cards += f'<div class="a{lm}" data-t="{t.lower()}" data-s="{a["source_clean"].lower()}" data-r="{r}" data-cat="{cat}"><div class="ac" data-id="{uid}" data-link="{el}" data-title="{t}" data-source="{sc}" data-src-color="{a["source_color"]}" data-txt="{txt}"{vid_attr}>{ih}{vid_icon}<div class="ab"><div class="am"><span class="as" style="background:{a["source_color"]}">{sc}</span><span class="ad">{esc(a["published"][:16])}</span></div><div class="at">{t}</div><div class="ae">{sm}</div></div></div><div class="sb-btn" data-share="1" title="مشاركة">↗</div></div>'
     return cards
 
 def build_badges_all():
@@ -956,7 +959,8 @@ def build_sidebar_list(articles, max_items=6):
         l = sanitize_url(a["link"])
         s = esc(a["source"])
         c = a["source_color"]
-        txt = esc(a.get("text", "")[:8000])
+        raw_txt = _clean_fluff(a.get("text", "")) if a.get("text") else ""
+        txt = esc(raw_txt[:8000])
         uid = hashlib.md5((a["title"] + a["link"]).encode()).hexdigest()[:8]
         vid = a.get("video")
         vid_id = ""
@@ -1208,6 +1212,21 @@ def main():
     # uni uses articles from DZ_UNI + AR_UNI RSS sources only
     merged["trending"] = merged["latest"][:]
     merged["popular"] = merged["latest"][:]
+
+    # Final fluff cleanup on all articles before rendering
+    cleaned_count = 0
+    for k in merged:
+        for a in merged[k]:
+            if a.get("text"):
+                cleaned = _clean_fluff(a["text"])
+                if cleaned != a["text"]:
+                    cleaned_count += 1
+                a["text"] = cleaned
+    for a in all_articles:
+        if a.get("text"):
+            a["text"] = _clean_fluff(a["text"])
+    if cleaned_count:
+        print(f"  Cleaned {cleaned_count} articles from fluff")
 
     # Remove articles without images before publishing
     for k in list(merged.keys()):

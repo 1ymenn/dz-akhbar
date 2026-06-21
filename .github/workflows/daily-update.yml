@@ -33,3 +33,26 @@ jobs:
           SURGE_LOGIN: ${{ secrets.SURGE_LOGIN }}
           SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
         run: npx surge --project ./ --domain https://dz-akhbar.surge.sh
+
+  report:
+    runs-on: ubuntu-latest
+    needs: update
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Send daily report
+        env:
+          GOATCOUNTER_CODE: ${{ secrets.GOATCOUNTER_CODE }}
+          GOATCOUNTER_TOKEN: ${{ secrets.GOATCOUNTER_TOKEN }}
+          REPORT_EMAIL: ${{ secrets.REPORT_EMAIL }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+        run: python daily_report.py
