@@ -1,4 +1,4 @@
-import sys, feedparser, time, os, re, json, socket, hashlib, subprocess, requests, asyncio, aiohttp
+import sys, feedparser, time, os, re, json, socket, hashlib, subprocess, requests, asyncio, aiohttp, random
 if hasattr(sys.stdout, 'reconfigure'): sys.stdout.reconfigure(encoding='utf-8')
 from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -52,9 +52,8 @@ def _text_matches_title(text, title):
     if not words:
         return True
     text_lower = text.lower()
-    title_lower = title.lower()
-    # Strong check: first 80 chars of title should appear in text
-    if title_lower[:80] in text_lower:
+    # Quick check: first 80 chars of title appears in text
+    if title.lower()[:80] in text_lower:
         return True
     match_count = 0
     for w in words:
@@ -67,19 +66,22 @@ def _text_matches_title(text, title):
                 match_count += 1
     return match_count >= max(1, int(len(words) * 0.5))
 
-def _clean_fluff(text):
+def _clean_fluff(text, title=""):
     """Remove promotional/fluff from article text."""
     if not text:
         return text
+    # Remove article title from start of text if present
+    if title:
+        t = re.escape(title.strip())
+        text = re.sub(r'^' + t + r'[\s\n]*', '', text).strip()
     fluff_starts = ['شارك غرِّد أرسل', 'غرِّد أرسل', 'شارك غرّد', 'غرّد أرسل',
                     'شـارك', 'نشر الخبر', 'انشر الخبر']
     fluff_full = ['التواصل الاجتماعي', 'رابط مختصر', 'تم نسخ الرابط',
                   'شـارك', 'اضغط هنا', 'شارك في التعليقات', 'علّق على الخبر']
-    # Regex patterns to remove from end of text
     fluff_end_re = [
         r'[\n\s]*إضغط\s+على\s+الصورة\s+لتحميل\s+تطبيق\s+النهار.*$',
         r'[\n\s]*إضغط\s+على\s+الصورة\s+لتحميل\s+تطبيق.*$',
-        r'[\n\s]*إضغط\s+على\s+الصورة.*$',
+        r'[\n\s]*إกดsط\s+على\s+الصورة.*$',
         r'[\n\s]*للإطلاع\s+على\s+كل\s+الأخبار.*$',
         r'[\n\s]*على\s+البلاي\s+ستور.*$',
         r'[\n\s]*بلاي\s+ستور.*$',
@@ -88,8 +90,34 @@ def _clean_fluff(text):
         r'[\n\s]*اشترك\s+في\s+قناتنا\s+على\s+يوتيوب.*$',
         r'[\n\s]*اشترك\s+في\s+قناتنا.*$',
         r'[\n\s]*قناة\s+الخبرTV.*$',
+        r'[\n\s]*تم\s+نسخ\s+الرابط.*$',
+        r'[\n\s]*©\s*(?:جميع\s+)?الحقوق\s+محفوظة.*$',
+        r'[\n\s]*جميع\s+الحقوق\s+محفوظة.*$',
+        r'[\n\s]*مختصر.*نسخ.*الرابط.*$',
+        r'[\n\s]*رابط\s+مختصر.*$',
     ]
-    
+    junk_line_re = re.compile(
+        r'^(?:'
+        r'(?:صورة|صور)[:\s,]+.*'
+        r'|(?:المصدر|المصادر)[:\s,]+.*'
+        r'|(?:(?:تابعونا|تابعونا على)[:\s].*)'
+        r'|(?:(?:اسم|أنا|هو|هي)\s+(?:كاتب|مؤلف|صحفي|مراسل|مذيع|مقدمة)[:\s].*)'
+        r'|(?:(?: bbc |بي بي سي)(?:عربي)?(?:\s*$))'
+        r'|(?:©\s*\d{4}(?:\s*,?\s*bbc)?)'
+        r'|(?:آخر\s+تحديث[:\s].*)'
+        r'|(?:تم\s+النشر\s+(?:أولاً|في)[:\s].*)'
+        r'|(?:النشرة\s+الإخبارية.*)'
+        r'|^(?:مراسل[ة]?\s+(?:لبي بي سي|للانباء|للشؤون|السياسية|للإذاعة|للقناتين|بي بي سي).*)$'
+        r'|^(?:بي بي سي\s*[-–—]\s*.+)$'
+        r'|^(?:[^\u0600-\u06FF]{0,5}[\u0600-\u06FF\s]{3,40})$'  # short non-Arabic name followed by Arabic text
+        r'|^(?:مراسلا\s+.+)$'
+        r'|^(?:مقدمة\s+.+)$'
+        r'|^(?:[^\u0600-\u06FF]{0,10}(?:احتفال|صورة|هل تعلم|شاهد|فيديو|مقطع)[^\n]{0,200})$'
+        r'|^[\u0600-\u06FF\s]{3,40}$'
+        r')',
+        re.IGNORECASE | re.MULTILINE
+    )
+
     paras = text.split('\n\n')
     clean = []
     for p in paras:
@@ -97,6 +125,10 @@ def _clean_fluff(text):
         # Skip entire paragraph if it's ONLY fluff
         if any(p_stripped.lower() == f.lower() for f in fluff_full):
             continue
+        # Remove junk lines within paragraph
+        lines = p_stripped.split('\n')
+        lines = [l for l in lines if not junk_line_re.match(l.strip())]
+        p_stripped = '\n'.join(lines).strip()
         # Clean fluff from beginning
         for fs in fluff_starts:
             if p_stripped.lower().startswith(fs.lower()):
@@ -112,6 +144,14 @@ def _clean_fluff(text):
             continue
         clean.append(p_stripped)
     result = '\n\n'.join(clean).strip()
+    # Strip trailing period/comma from last line
+    if result:
+        last_newline = result.rfind('\n')
+        if last_newline >= 0:
+            last_line = result[last_newline+1:].rstrip('،.:- ')
+            result = result[:last_newline+1] + last_line
+        else:
+            result = result.rstrip('،.:- ')
     return result if len(result) > 10 else ""
 
 DZ_LATEST = [
@@ -200,10 +240,25 @@ REGIONS = {
 def clean_url(u):
     if not u: return u
     u = u.replace("\\/", "/")
+    # Fix broken URLs where feed/article URL gets prepended (e.g. domain.com/feed///domain.com/...)
+    m = re.match(r'^(https?://[^/]+)/[^/]*/{2,}[^/]+/(.+)$', u)
+    if m:
+        u = m.group(1) + '/' + m.group(2)
     # Upgrade WordPress thumbnail sizes
     m = re.search(r'-(\d+)x(\d+)\.(jpg|jpeg|png|gif|webp)', u, re.IGNORECASE)
     if m and int(m.group(1)) < 400:
         u = u.replace(f"-{m.group(1)}x{m.group(2)}", "")
+    # elbilad.net: /original/ returns 404, use /article/d_ prefix instead
+    if 'elbilad.net' in u:
+        u = re.sub(r'/storage/images/original/', '/storage/images/article/d_', u)
+        return u
+    # elkhabar.com: /original/ returns 404, use /article/g_ prefix instead
+    if 'elkhabar.com' in u:
+        u = re.sub(r'/storage/images/original/', '/storage/images/article/g_', u)
+        return u
+    # Upgrade RT thumbnail → original
+    u = re.sub(r'/thumbnail/', '/original/', u)
+    u = re.sub(r'/article/', '/original/', u)
     return u
 
 def extract_image(entry):
@@ -262,11 +317,16 @@ def extract_text(link):
                 if isinstance(data, dict) and 'articleBody' in data:
                     body = data['articleBody']
                     if len(body) > 100:
-                        return body[:8000]
+                        return body
             except:
                 pass
     except:
         pass
+    # Try BBC __NEXT_DATA__ (Next.js SPA)
+    if "bbc.com" in link:
+        bbc_text = _extract_bbc_next_data(page_html)
+        if bbc_text and len(bbc_text) > 50:
+            return bbc_text
     # Try meta description (save for later fallback)
     meta_desc_text = ""
     try:
@@ -286,7 +346,7 @@ def extract_text(link):
     if not paras or (len(paras) < 5 and content_len < 800):
         # Fallback: try common content containers first, then <article>, then largest <div>
         fallback_html = ""
-        content_classes = ["editor-content", "entry-content", "article-body", "post-content", "story-body", "article-content", "post-body"]
+        content_classes = ["artx", "editor-content", "entry-content", "article-body", "post-content", "story-body", "article-content", "post-body"]
         for cls in content_classes:
             idx = page_html.find(cls)
             if idx > 0:
@@ -336,8 +396,8 @@ def extract_text(link):
             text = re.sub(r'<[^>]+>', ' ', page_html)
             text = html_mod.unescape(text)
             text = re.sub(r'\s+', ' ', text).strip()
-            if len(text) > 50: return text[:8000]
-            return meta_desc_text[:8000] if meta_desc_text else ""
+            if len(text) > 50: return text
+            return meta_desc_text if meta_desc_text else ""
     clean = []
     for p in paras:
         text = re.sub(r'<[^>]+>', ' ', p)
@@ -349,12 +409,8 @@ def extract_text(link):
         if sum(1 for c in text if c.isdigit()) / max(len(text), 1) > 0.5 and len(text) < 50: continue
         clean.append(text)
     if not clean:
-        return meta_desc_text[:8000] if meta_desc_text else ""
+        return meta_desc_text if meta_desc_text else ""
     text = '\n\n'.join(clean)
-    if len(text) > 3000:
-        text = text[:8000]
-        last = max(text.rfind('.'), text.rfind('،'), text.rfind('?'), text.rfind('!'))
-        if last > 1000: text = text[:last+1]
     return text
 
 def extract_video(link):
@@ -384,7 +440,7 @@ def fetch_og_image(link):
     html, _ = fetch_page(link)
     if not html:
         return None
-    _reject = re.compile(r'logo|icon|avatar|banner|spacer|pixel|nothumb|no[._-]?image|placeholder|/default\.|DefaultImage|970x90', re.IGNORECASE)
+    _reject = re.compile(r'logo|icon|avatar|banner|spacer|pixel|nothumb|nothumbs_[dg]|no[._-]?image|placeholder|/default\.|DefaultImage|970x90', re.IGNORECASE)
     def strip_wp_thumb(url):
         return re.sub(r'-\d+x\d+\.(jpg|jpeg|png|gif|webp)$', r'.\1', url, flags=re.IGNORECASE)
     for pat in [r'<meta\s+property="og:image"\s+content="([^"]+)"',
@@ -428,7 +484,12 @@ def fetch_source(source, max_per_source):
             if cnt >= max_per_source:
                 break
             # Skip articles older than 2 days
-            if hasattr(e, 'published_parsed') and e.published_parsed:
+            # Use parse_published_str for the real date (feedparser may default to today for custom formats)
+            real_ts = parse_published_str(e.get("published", ""))
+            if real_ts:
+                if real_ts < cutoff_2d:
+                    continue
+            elif hasattr(e, 'published_parsed') and e.published_parsed:
                 pub_ts = time.mktime(e.published_parsed)
                 if pub_ts < cutoff_2d:
                     continue
@@ -437,7 +498,7 @@ def fetch_source(source, max_per_source):
             sm = e.get("summary", "")
             p = e.get("published", "")
             img = extract_image(e)
-            if img and re.search(r'nothumb|no[._-]?image|placeholder|/default\.|DefaultImage|970x90', img, re.IGNORECASE):
+            if img and re.search(r'nothumb|nothumbs_[dg]|no[._-]?image|placeholder|/default\.|DefaultImage|970x90', img, re.IGNORECASE):
                 img = None
             if not img:
                 img = fetch_og_image(l)
@@ -452,6 +513,14 @@ def fetch_source(source, max_per_source):
                 if new_sm:
                     sm = new_sm[:200] + "..."
                     translated_flag = " | مترجم"
+            # Filter: Algeria El Djadida — only "أهم الأخبار" tag
+            if source["n"] == "الجزائر الجديدة":
+                tags = [tag.get("term", "") for tag in e.get("tags", [])]
+                if "أهم الأخبار" not in tags:
+                    continue
+            # Filter: Al-Moubad — skip PDF archive page
+            if source["n"] == "الموعد" and "اليومي" in t:
+                continue
             arts.append({"title": t, "link": l, "summary": sm, "source": source["n"] + translated_flag,
                          "source_clean": source["n"], "source_color": source["c"],
                          "published": p, "published_parsed": e.get("published_parsed"), "image": img})
@@ -503,7 +572,7 @@ def fetch_news(sources, max_per_source):
                 pass
     for a in arts:
         if a.get("text"):
-            a["text"] = _clean_fluff(a["text"])
+            a["text"] = _clean_fluff(a["text"], a.get("title", ""))
     return arts
 
 # ============================================================
@@ -551,7 +620,7 @@ async def async_fetch_og_images(session, articles, sem):
 
 def _extract_og_from_html(html, link):
     """Extract og:image from raw HTML (helper for async path)."""
-    _reject = re.compile(r'logo|icon|avatar|banner|spacer|pixel|nothumb|no[._-]?image|placeholder|/default\.|DefaultImage|970x90', re.IGNORECASE)
+    _reject = re.compile(r'logo|icon|avatar|banner|spacer|pixel|nothumb|nothumbs_[dg]|no[._-]?image|placeholder|/default\.|DefaultImage|970x90', re.IGNORECASE)
     def strip_wp_thumb(url):
         return re.sub(r'-\d+x\d+\.(jpg|jpeg|png|gif|webp)$', r'.\1', url, flags=re.IGNORECASE)
     for pat in [r'<meta\s+property="og:image"\s+content="([^"]+)"',
@@ -587,6 +656,51 @@ def _extract_og_from_html(html, link):
             return clean_url(i)
     return None
 
+def _extract_bbc_next_data(html):
+    """Extract full article text from BBC Arabic __NEXT_DATA__ (Next.js SPA)."""
+    m = re.search(r'<script[^>]+id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.DOTALL)
+    if not m:
+        return ""
+    try:
+        nd = json.loads(m.group(1))
+        pd = nd.get("props", {}).get("pageProps", {}).get("pageData", {})
+        blocks = pd.get("content", {}).get("model", {}).get("blocks", [])
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return ""
+    # Block types to skip (junk)
+    skip_types = {"video", "image", "rawImage", "aresMediaMetadata",
+                  "relatedContent", "optimoLinkMetadata", "timestamp",
+                  "socialMediaEmbed", "iframe", "gallery", "ticker",
+                  "liveEvent", "podcast", "weather"}
+    all_text = []
+    def _walk(blocks, depth=0):
+        for b in blocks:
+            btype = b.get("type", "")
+            model = b.get("model", {})
+            # Skip junk block types entirely
+            if btype in skip_types:
+                continue
+            if btype == "text":
+                for ib in model.get("blocks", []):
+                    ibtype = ib.get("type", "")
+                    imodel = ib.get("model", {})
+                    if ibtype == "paragraph":
+                        for tb in imodel.get("blocks", []):
+                            if tb.get("type") == "fragment":
+                                frag = tb.get("model", {}).get("text", "").strip()
+                                if frag:
+                                    all_text.append(frag)
+                    elif ibtype == "heading":
+                        for tb in imodel.get("blocks", []):
+                            if tb.get("type") == "fragment":
+                                frag = tb.get("model", {}).get("text", "").strip()
+                                if frag:
+                                    all_text.append(frag)
+            elif "blocks" in model:
+                _walk(model["blocks"], depth + 1)
+    _walk(blocks)
+    return "\n\n".join(all_text)
+
 async def async_fetch_all(regions, max_per_source):
     """Main async fetcher - fetches all sources concurrently."""
     sem = asyncio.Semaphore(20)
@@ -621,6 +735,9 @@ async def async_fetch_all(regions, max_per_source):
             link = a.get("link")
             if not link:
                 return
+            # Skip page fetch for Al-Moubad (always 404)
+            if a.get("source_clean") == "الموعد":
+                return
             html, _ = await async_fetch_page(session, link, sem)
             if html:
                 # Extract text: try JSON-LD articleBody first (most reliable)
@@ -634,15 +751,20 @@ async def async_fetch_all(regions, max_per_source):
                                 ld = ld[0] if ld else {}
                             body = ld.get("articleBody", "")
                             if body and len(body) > 50:
-                                a["text"] = body[:8000]
+                                a["text"] = body
                                 break
                         except:
                             pass
                 except:
                     pass
+                # Fallback: BBC __NEXT_DATA__ (Next.js SPA)
+                if not a.get("text") and "bbc.com" in link:
+                    bbc_text = _extract_bbc_next_data(html)
+                    if bbc_text and len(bbc_text) > 50:
+                        a["text"] = bbc_text
                 # Fallback: targeted article selectors
                 if not a.get("text"):
-                    for sel in [r'<div[^>]*class="[^"]*(?:article-body|article-content|entry-content|post-content|story-body|article__body)[^"]*"[^>]*>(.*?)</div>',
+                    for sel in [r'<div[^>]*class="[^"]*(?:artx|article-body|article-content|entry-content|post-content|story-body|article__body)[^"]*"[^>]*>(.*?)</div>',
                                 r'<article[^>]*>(.*?)</article>']:
                         m = re.search(sel, html, re.DOTALL|re.IGNORECASE)
                         if m:
@@ -657,7 +779,7 @@ async def async_fetch_all(regions, max_per_source):
                                 if len(text) >= 25:
                                     clean.append(text)
                             if clean:
-                                txt = '\n\n'.join(clean)[:8000]
+                                txt = '\n\n'.join(clean)
                                 # Strong check: article title must appear at start of text
                                 title_str = a.get("title", "")
                                 title_lower = title_str.lower()
@@ -690,18 +812,13 @@ async def async_fetch_all(regions, max_per_source):
                             if len(text) >= 25:
                                 clean.append(text)
                         if clean:
-                            txt = '\n\n'.join(clean)[:8000]
-                            # Strong check: title must appear in first 200 chars
+                            txt = '\n\n'.join(clean)
                             title_str = a.get("title", "")
-                            if title_str.lower()[:50] in txt.lower()[:200]:
+                            if _text_matches_title(txt, title_str):
                                 a["text"] = txt
-                            elif _text_matches_title(txt, title_str):
-                                first_para = clean[0].lower()
-                                title_words = re.findall(r'[\u0600-\u06FF]{3,}', title_str)
-                                if title_words:
-                                    matches = sum(1 for w in title_words if w.lower() in first_para)
-                                    if matches >= len(title_words) * 0.6:
-                                        a["text"] = txt
+                            elif len(clean) >= 3 and len(txt) >= 300:
+                                # Substantial text from readability — trust it
+                                a["text"] = txt
                     except:
                         pass
                 # Fallback: meta description
@@ -710,7 +827,7 @@ async def async_fetch_all(regions, max_per_source):
                     if meta_desc:
                         desc = html_mod.unescape(meta_desc.group(1)).strip()
                         if len(desc) > 50:
-                            a["text"] = desc[:8000]
+                            a["text"] = desc
                 # Extract video
                 m = re.search(r'youtube\.com/embed/([a-zA-Z0-9_-]+)', html, re.IGNORECASE)
                 if not m:
@@ -719,8 +836,11 @@ async def async_fetch_all(regions, max_per_source):
                     m = re.search(r'youtu\.be/([a-zA-Z0-9_-]+)', html, re.IGNORECASE)
                 if m and re.match(r'^[a-zA-Z0-9_-]+$', m.group(1)):
                     a["video"] = ("youtube", m.group(1))
-                # Extract image if still missing
-                if not a.get("image"):
+                # Extract image if missing or is static/breaking placeholder or broken URL
+                cur_img = a.get("image", "")
+                is_static = bool(re.search(r'static\.|breaking|nothumb|nothumbs_[dg]|no[._-]?image|placeholder|/default\.|DefaultImage|970x90', cur_img, re.IGNORECASE)) if cur_img else False
+                is_broken = bool(re.search(r'feed/{2,}|/original/.*(?:elbilad|elkhabar|elhiwar)', cur_img, re.IGNORECASE)) if cur_img else False
+                if not cur_img or is_static or is_broken:
                     img = _extract_og_from_html(html, link)
                     if img:
                         a["image"] = img
@@ -750,7 +870,7 @@ async def async_fetch_all(regions, max_per_source):
                         # Find the longest text chunk (likely the article body)
                         chunks = [c.strip() for c in re.split(r'[.!?؟!.\n]', raw) if len(c.strip()) > 40]
                         if chunks:
-                            txt = '. '.join(chunks[:20])[:8000]
+                            txt = '. '.join(chunks[:20])
                             if _text_matches_title(txt, a.get("title", "")):
                                 a["text"] = txt
                 except:
@@ -759,7 +879,7 @@ async def async_fetch_all(regions, max_per_source):
         # Clean fluff from all article text
         for a in all_articles:
             if a.get("text"):
-                a["text"] = _clean_fluff(a["text"])
+                a["text"] = _clean_fluff(a["text"], a.get("title", ""))
 
         return all_articles
 
@@ -776,6 +896,49 @@ def safe_mktime(t):
         return time.mktime(t)
     except (OverflowError, ValueError, OSError):
         return 0
+
+def parse_published_str(published_str):
+    """Parse a published string and return a timestamp, or 0 if unparseable."""
+    if not published_str:
+        return 0
+    now = time.time()
+    # Try DD-MM-YYYY format (e.g. "20:39 | 22-06-2026")
+    m = re.search(r'(\d{1,2})-(\d{1,2})-(\d{4})\b', published_str)
+    if m:
+        d, mo, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        try:
+            return time.mktime(time.struct_time((year, mo, d, 0, 0, 0, 0, 0, -1)))
+        except:
+            pass
+    # Try DD-MM-YY format (e.g. "19:47 | 04-05-20")
+    m = re.search(r'(\d{1,2})-(\d{1,2})-(\d{2})\b', published_str)
+    if m:
+        d, mo, yy = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        year = 2000 + yy if yy < 50 else 1900 + yy
+        try:
+            return time.mktime(time.struct_time((year, mo, d, 0, 0, 0, 0, 0, -1)))
+        except:
+            pass
+    # Try Mon, DD Mon YYYY (e.g. "Sat, 20 Jun 2026")
+    months = {'jan':1,'feb':2,'mar':3,'apr':4,'may':5,'jun':6,'jul':7,'aug':8,'sep':9,'oct':10,'nov':11,'dec':12,
+              'janvier':1,'février':2,'mars':3,'avril':4,'mai':5,'juin':6,'juillet':7,'août':8,'septembre':9,'octobre':10,'novembre':11,'décembre':12}
+    for eng, num in months.items():
+        if eng in published_str.lower():
+            dm = re.search(r'(\d{1,2})\s+' + eng, published_str.lower())
+            ym = re.search(r'(\d{4})', published_str)
+            if dm and ym:
+                try:
+                    return time.mktime(time.struct_time((int(ym.group(1)), num, int(dm.group(1)), 0, 0, 0, 0, 0, -1)))
+                except:
+                    pass
+    # Try DD/MM/YYYY
+    m = re.search(r'(\d{1,2})/(\d{1,2})/(\d{4})', published_str)
+    if m:
+        try:
+            return time.mktime(time.struct_time((int(m.group(3)), int(m.group(2)), int(m.group(1)), 0, 0, 0, 0, 0, -1)))
+        except:
+            pass
+    return 0
 
 # ============================================================
 # ARTICLE VALIDATION & REPAIR
@@ -876,7 +1039,7 @@ async def repair_missing_text(articles):
                     if len(text) >= 25:
                         clean.append(text)
                 if clean:
-                    txt = '\n\n'.join(clean)[:8000]
+                    txt = '\n\n'.join(clean)
                     if _text_matches_title(txt, a.get("title", "")):
                         a["text"] = txt
                         return
@@ -895,7 +1058,7 @@ async def repair_missing_text(articles):
                     raw = re.sub(r'\s+', ' ', raw).strip()
                     chunks = [c.strip() for c in re.split(r'[.!?؟!.\n]', raw) if len(c.strip()) > 40]
                     if chunks:
-                        txt = '. '.join(chunks[:20])[:8000]
+                        txt = '. '.join(chunks[:20])
                         if _text_matches_title(txt, a.get("title", "")):
                             a["text"] = txt
                             return
@@ -908,7 +1071,7 @@ async def repair_missing_text(articles):
             raw = re.sub(r'\s+', ' ', raw).strip()
             chunks = [c.strip() for c in re.split(r'[.!?؟!.\n]', raw) if len(c.strip()) > 40]
             if chunks:
-                txt = '. '.join(chunks[:20])[:8000]
+                txt = '. '.join(chunks[:20])
                 if _text_matches_title(txt, a.get("title", "")):
                     a["text"] = txt
         tasks = [_repair_one(a) for a in articles if not a.get("text", "").strip()]
@@ -946,7 +1109,7 @@ def generate_latest_json(articles, base_dir):
             "source": a.get("source_clean", ""),
             "source_color": a.get("source_color", "#666"),
             "image": a.get("image") or "",
-            "published": a.get("published", "")[:16],
+            "published": a.get("published", "")[:20],
             "region": a.get("region", "dz"),
             "category": classify_category(a.get("title", "")),
         })
@@ -985,13 +1148,13 @@ def build_articles(articles):
         t = esc(a["title"])
         sm = esc(a["summary"])[:200] if a["summary"] else ""
         img = a.get("image")
-        if img and re.search(r'nothumb|no[._-]?image|placeholder|/default\.|DefaultImage|970x90', img, re.IGNORECASE):
+        if img and re.search(r'nothumb|no[._-]?image|nothumbs_[dg]|placeholder|/default\.|DefaultImage|970x90', img, re.IGNORECASE):
             img = None
         c1 = colors[hash(t) % len(colors)]
         c2 = colors[(hash(t)+1) % len(colors)]
         if img:
             ie = esc(img)
-            ih = f'<div class="ai has-img" style="background:linear-gradient(135deg,{c1},{c2})"><img src="{ie}" alt="" loading="lazy" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div class="io"></div></div>'
+            ih = f'<div class="ai has-img" style="background:linear-gradient(135deg,{c1},{c2})"><img src="{ie}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div class="io"></div></div>'
         else:
             ic = ["📰","📋","📌","🔖","📊","📈","📑","🗞️"][hash(t) % 8]
             ih = f'<div class="ai no-img" style="background:linear-gradient(135deg,{c1},{c2})"><div class="ii">{ic}</div></div>'
@@ -999,8 +1162,8 @@ def build_articles(articles):
         sc = esc(a["source"])
         raw_txt = a.get("text", "")
         if raw_txt:
-            raw_txt = _clean_fluff(raw_txt)
-        txt = esc(raw_txt[:8000])
+            raw_txt = _clean_fluff(raw_txt, a.get("title", ""))
+        txt = esc(raw_txt)
         lm = " lm" if idx >= 40 else ""
         r = a.get("region", "dz")
         cat = classify_category(a["title"])
@@ -1011,7 +1174,7 @@ def build_articles(articles):
             vid_id = vid[1][:50]
         vid_attr = f' data-video="{vid_id}"' if vid_id else ""
         vid_icon = '<div class="vi">▶</div>' if vid else ""
-        cards += f'<div class="a{lm}" data-t="{t.lower()}" data-s="{a["source_clean"].lower()}" data-r="{r}" data-cat="{cat}"><div class="ac" data-id="{uid}" data-link="{el}" data-title="{t}" data-source="{sc}" data-src-color="{a["source_color"]}" data-txt="{txt}"{vid_attr}>{ih}{vid_icon}<div class="ab"><div class="am"><span class="as" style="background:{a["source_color"]}">{sc}</span><span class="ad">{esc(a["published"][:16])}</span></div><div class="at">{t}</div><div class="ae">{sm}</div></div></div><div class="sb-btn" data-share="1" title="مشاركة">↗</div></div>'
+        cards += f'<div class="a{lm}" data-t="{t.lower()}" data-s="{a["source_clean"].lower()}" data-r="{r}" data-cat="{cat}"><div class="ac" data-id="{uid}" data-link="{el}" data-title="{t}" data-source="{sc}" data-src-color="{a["source_color"]}" data-txt="{txt}"{vid_attr}>{ih}{vid_icon}<div class="ab"><div class="am"><span class="as" style="background:{a["source_color"]}">{sc}</span><span class="ad">{esc(a["published"][:20])}</span></div><div class="at">{t}</div><div class="ae">{sm}</div></div></div><div class="sb-btn" data-share="1" title="مشاركة">↗</div></div>'
     return cards
 
 def build_badges_all():
@@ -1032,16 +1195,16 @@ def build_sidebar_list(articles, max_items=6):
         l = sanitize_url(a["link"])
         s = esc(a["source"])
         c = a["source_color"]
-        raw_txt = _clean_fluff(a.get("text", "")) if a.get("text") else ""
-        txt = esc(raw_txt[:8000])
+        raw_txt = _clean_fluff(a.get("text", ""), a.get("title", "")) if a.get("text") else ""
+        txt = esc(raw_txt)
         uid = hashlib.md5((a["title"] + a["link"]).encode()).hexdigest()[:8]
         vid = a.get("video")
         vid_id = ""
         if vid and re.match(r'^[a-zA-Z0-9_-]+$', str(vid[1])):
             vid_id = vid[1][:50]
         vid_attr = f' data-video="{vid_id}"' if vid_id else ""
-        items += f'<li><span class="sb-link" data-id="{uid}" data-link="{l}" data-title="{t}" data-source="{s}" data-src-color="{c}" data-txt="{txt}"{vid_attr}><span class="sb-rank" style="background:{c}">{i+1}</span><span class="sb-text">{t}</span></span></li>'
-    return f'<ol class="sb-list">{items}</ol>' if items else ""
+        items += f'<li><span class="sb-link" data-id="{uid}" data-link="{l}" data-title="{t}" data-source="{s}" data-src-color="{c}" data-txt="{txt}"{vid_attr}><span class="sb-dot" style="background:{c}"></span><span class="sb-text">{t}</span></span></li>'
+    return f'<ul class="sb-list">{items}</ul>' if items else ""
 
 def build_featured(art):
     if not art: return ""
@@ -1053,11 +1216,11 @@ def build_featured(art):
     c2 = colors[(hash(t)+1) % len(colors)]
     if img:
         ie = esc(img)
-        ih = f'<div class="ftr-img" style="background:linear-gradient(135deg,{c1},{c2})"><img src="{ie}" alt="" loading="lazy" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div class="ftr-overlay"></div></div>'
+        ih = f'<div class="ftr-img" style="background:linear-gradient(135deg,{c1},{c2})"><img src="{ie}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div class="ftr-overlay"></div></div>'
     else:
         ih = f'<div class="ftr-img ftr-no-img" style="background:linear-gradient(135deg,{c1},{c2})"><div class="ii">📰</div></div>'
     el = sanitize_url(art["link"])
-    return f'<div class="ftr-art"><div class="ftr-inner">{ih}<div class="ftr-body"><span class="ftr-src" style="background:{art["source_color"]}">{esc(art["source"])}</span><div class="ftr-title">{t}</div><div class="ftr-summary">{sm}</div><div class="ftr-meta"><span>{esc(art["published"][:16])}</span></div></div></div></div>'
+    return f'<div class="ftr-art"><div class="ftr-inner">{ih}<div class="ftr-body"><span class="ftr-src" style="background:{art["source_color"]}">{esc(art["source"])}</span><div class="ftr-title">{t}</div><div class="ftr-summary">{sm}</div><div class="ftr-meta"><span>{esc(art["published"][:20])}</span></div></div></div></div>'
 
 def build_badges(rid):
     return "".join(f'<span class="sb-b" style="background:{s["c"]}" data-badge="{s["n"]}">{s["n"]}</span>' for s in REGIONS[rid]["latest"])
@@ -1140,6 +1303,7 @@ body{font-family:'Noto Sans Arabic','Cairo',sans-serif;background:var(--bg);colo
 .sb-list li a,.sb-link{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--text);padding:10px 14px;border-radius:10px;transition:all .2s;font-size:15px;line-height:1.6;cursor:pointer}
 .sb-list li a:hover,.sb-link:hover{background:var(--filter-bg);color:var(--red)}
 .sb-rank{width:28px;height:28px;border-radius:50%;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .sb-text{overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;flex:1;font-size:15px;color:var(--text)}
 @media(max-width:1024px) and (min-width:768px){.sidebar{width:100%;position:static;display:grid!important;grid-template-columns:1fr 1fr;gap:14px}.sb-widget{margin-bottom:0}}
 .gr{column-count:3;column-gap:18px}
@@ -1171,28 +1335,28 @@ body.light .sb-btn:hover{background:var(--red);color:#fff;border-color:var(--red
 .ftr-sec{border-top:1px solid var(--line);padding:24px 0;margin-top:30px;text-align:center;color:var(--text3);font-size:13px}
 .ftr-sec .lk{display:flex;justify-content:center;gap:16px;margin-bottom:8px}
 .ftr-sec a{color:var(--accent);text-decoration:none;font-weight:600}
-.mod-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:2000;justify-content:center;align-items:center;padding:20px;backdrop-filter:blur(4px)}.mod-progress{position:absolute;top:0;left:0;height:3px;background:var(--accent);z-index:10;transition:width .15s;width:0%}
+.mod-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:2000;justify-content:center;align-items:center;padding:20px;backdrop-filter:blur(8px)}.mod-progress{position:absolute;top:0;left:0;height:2px;background:var(--accent);z-index:10;transition:width .15s;width:0%}
 .mod-overlay.open{display:flex}
-.mod-box{background:var(--card-bg);border-radius:16px;width:100%;max-width:720px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.5);border:1px solid var(--border);position:relative}
-.mod-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);min-height:60px;position:sticky;top:0;background:var(--card-bg);z-index:5}
-.mh-src{display:inline-block;padding:4px 14px;border-radius:10px;font-size:12px;font-weight:700;color:#fff}
-.mh-close{width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,0.08);color:var(--text2);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.mod-box{background:var(--card-bg);border-radius:16px;width:100%;max-width:720px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.6);border:1px solid var(--border);position:relative}
+.mod-head{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);min-height:44px;position:sticky;top:0;background:var(--card-bg);z-index:5}
+.mh-src{display:inline-block;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700;color:#fff}
+.mh-close{width:32px;height:32px;border-radius:50%;border:none;background:rgba(255,255,255,0.06);color:var(--text3);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
 .mh-close:hover{background:var(--red);color:#fff}
-.mod-title{font-family:'Cairo',sans-serif;font-size:28px;font-weight:900;color:var(--text);padding:20px 24px 0;line-height:1.4}
-.mod-body{padding:20px 24px;overflow-y:auto;flex:1;font-size:18px;line-height:2;color:var(--text2);scroll-behavior:smooth}
-.mod-body p{margin-bottom:18px}
-.mod-footer{display:flex;gap:10px;padding:16px 24px;border-top:1px solid var(--border);flex-wrap:wrap}
-.mod-btn{padding:10px 20px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;gap:6px;font-family:inherit;border:none}
-.mod-btn-primary{background:var(--accent);color:#fff}.mod-btn-primary:hover{background:var(--accent-hover)}
-.mod-btn-secondary{background:var(--badge-bg);color:var(--text2);border:1px solid var(--border)}.mod-btn-secondary:hover{background:#3A3A3A}
-.mod-btn-share{background:var(--badge-bg);color:var(--text2);border:1px solid var(--border);font-size:16px;padding:10px 14px;border-radius:10px;cursor:pointer;transition:all .2s}.mod-btn-share:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.mod-title{font-family:'Cairo',sans-serif;font-size:24px;font-weight:900;color:var(--text);padding:16px 20px 0;line-height:1.5}
+.mod-body{padding:14px 20px;overflow-y:auto;flex:1;font-size:17px;line-height:2;color:var(--text2);scroll-behavior:smooth}
+.mod-body p{margin-bottom:14px}
+.mod-footer{display:flex;gap:6px;padding:10px 16px;border-top:1px solid var(--border);flex-wrap:wrap;align-items:center}
+.mod-btn{padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;gap:4px;font-family:inherit;border:none}
+.mod-btn-primary{background:var(--accent);color:#fff;font-size:12px}.mod-btn-primary:hover{background:var(--accent-hover)}
+.mod-btn-secondary{background:transparent;color:var(--text3);border:1px solid var(--border);font-size:12px;padding:6px 12px}.mod-btn-secondary:hover{background:rgba(255,255,255,0.05);color:var(--text2)}
+.mod-btn-share{background:transparent;color:var(--text3);border:1px solid var(--border);font-size:13px;padding:6px 10px;border-radius:8px;cursor:pointer;transition:all .2s}.mod-btn-share:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
 .mod-readmore{display:block;text-align:center;margin-top:20px;padding:12px 20px;background:var(--accent);color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;transition:all .2s}.mod-readmore:hover{opacity:.85;transform:translateY(-1px)}
 .mod-body::-webkit-scrollbar{width:6px}
 .mod-body::-webkit-scrollbar-track{background:transparent}
 .mod-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-@media(max-width:600px){.mod-overlay{padding:0;align-items:stretch}.mod-overlay .mod-box{max-height:100vh;height:100vh;border-radius:0;max-width:100%}.mod-head{padding:12px 16px;min-height:56px;position:sticky;top:0;background:rgba(18,18,18,0.95);backdrop-filter:blur(10px);z-index:10}.mod-head .mh-close{width:48px;height:48px;font-size:24px;background:rgba(255,255,255,0.1);border-radius:50%}.mod-title{padding:16px 16px 0;font-size:22px;line-height:1.5}.mod-body{padding:16px;font-size:17px;line-height:1.9}.mod-footer{flex-direction:column;gap:10px;padding:16px;border-bottom:1px solid var(--border)}.mod-footer .mod-btn{justify-content:center;padding:14px 16px;font-size:15px;border-radius:12px}}
-@media(max-width:768px){.sidebar{display:none!important}html{font-size:15px}.ti{padding:0 16px}.masthead{padding:18px 0 14px}.mh-title{font-size:36px}.mh-meta{gap:14px;font-size:12px}.sub-ts,.ctrls,.ct{padding:0 16px}.gr{column-count:2;column-gap:14px}.ai{aspect-ratio:16/9}.ab{padding:12px 14px 16px}.at{font-size:18px}.ae{font-size:14px}.sb-btn{width:28px;height:28px;font-size:11px;top:8px;left:8px}.ftr-art{margin:12px 0}.ftr-inner{grid-template-columns:1fr}.ftr-img{height:200px}.ftr-body{padding:20px 22px}.ftr-title{font-size:24px}.ftr-summary{font-size:15px;-webkit-line-clamp:3}}
-@media(max-width:480px){.mh-title{font-size:28px}.gr{column-count:1}.ai{height:auto;aspect-ratio:16/9}.ab{padding:10px 12px 14px}.at{font-size:17px}.ae{font-size:13px}.ftr-title{font-size:20px}.ftr-img{height:160px}.ftr-body{padding:16px 18px}.mod-title{font-size:22px}.mod-body{font-size:16px}}"""
+@media(max-width:600px){.mod-overlay{padding:0;align-items:stretch}.mod-overlay .mod-box{max-height:100vh;height:100vh;border-radius:0;max-width:100%}.mod-head{padding:8px 12px;min-height:40px;position:sticky;top:0;background:rgba(18,18,18,0.95);backdrop-filter:blur(10px);z-index:10}.mod-head .mh-close{width:30px;height:30px;font-size:14px;background:rgba(255,255,255,0.08);border-radius:50%}.mod-title{padding:12px 14px 0;font-size:20px;line-height:1.5}.mod-body{padding:12px 14px;font-size:16px;line-height:1.9}.mod-footer{gap:6px;padding:10px 14px;border-bottom:1px solid var(--border);flex-direction:row;flex-wrap:wrap;align-items:center}.mod-footer .mod-btn{padding:6px 12px;font-size:11px;border-radius:8px}}
+@media(max-width:768px){.sidebar{display:none!important}html{font-size:15px}.ti{padding:0 16px}.masthead{padding:18px 0 14px}.mh-title{font-size:36px}.mh-meta{gap:14px;font-size:12px}.sub-ts,.ctrls,.ct{padding:0 16px}.gr{column-count:2;column-gap:14px}.ai{aspect-ratio:16/9}.ab{padding:12px 14px 16px}.at{font-size:18px}.ae{font-size:14px}.sb-btn{width:28px;height:28px;font-size:11px;top:8px;left:8px}.ftr-art{margin:12px 0}.ftr-inner{grid-template-columns:1fr}.ftr-img{height:200px}.ftr-body{padding:20px 22px}.ftr-title{font-size:24px}.ftr-summary{font-size:15px;-webkit-line-clamp:3}.mod-head{padding:10px 14px;min-height:44px}.mod-head .mh-close{width:32px;height:32px;font-size:14px}.mod-title{font-size:22px;padding:14px 16px 0}.mod-body{padding:14px 16px;font-size:16px}.mod-footer{gap:6px;padding:10px 14px}.mod-footer .mod-btn{padding:6px 12px;font-size:11px}}
+@media(max-width:480px){.mh-title{font-size:28px}.gr{column-count:1}.ai{height:auto;aspect-ratio:16/9}.ab{padding:10px 12px 14px}.at{font-size:17px}.ae{font-size:13px}.ftr-title{font-size:20px}.ftr-img{height:160px}.ftr-body{padding:16px 18px}.mod-title{font-size:18px}.mod-body{font-size:15px;line-height:1.85}}"""
 
 def main():
     base = os.path.dirname(os.path.abspath(__file__))
@@ -1242,27 +1406,33 @@ def main():
                             result[rid][cat].append(a)
                         break
 
-    # Remove articles older than 3 days
-    cutoff_3d = time.time() - 3*86400
+    # Remove articles older than 2 days
+    cutoff_3d = time.time() - 2*86400
     for rid in ["dz", "ar"]:
         for cat in result[rid]:
             kept = []
             for a in result[rid][cat]:
-                pp = a.get("published_parsed")
-                if pp:
-                    try:
-                        if time.mktime(pp) >= cutoff_3d:
-                            kept.append(a)
-                    except:
+                # Use parse_published_str for the real date
+                real_ts = parse_published_str(a.get("published", ""))
+                if real_ts:
+                    if real_ts >= cutoff_3d:
                         kept.append(a)
                 else:
-                    kept.append(a)
+                    pp = a.get("published_parsed")
+                    if pp:
+                        try:
+                            if time.mktime(pp) >= cutoff_3d:
+                                kept.append(a)
+                        except:
+                            kept.append(a)
+                    else:
+                        kept.append(a)
             result[rid][cat] = kept
 
-    # Sort by date (newest first)
+    # Sort by date (newest first) - use real_ts for accurate sorting
     for rid in ["dz", "ar"]:
         for cat in result[rid]:
-            result[rid][cat].sort(key=lambda a: safe_mktime(a.get("published_parsed")), reverse=True)
+            result[rid][cat].sort(key=lambda a: parse_published_str(a.get("published", "")) or safe_mktime(a.get("published_parsed")), reverse=True)
 
     # Rebuild all_articles from filtered results
     all_articles = []
@@ -1279,7 +1449,8 @@ def main():
             if cat in merged:
                 merged[cat].extend(result[rid][cat])
     for cat in merged:
-        merged[cat].sort(key=lambda a: safe_mktime(a.get("published_parsed")), reverse=True)
+        merged[cat].sort(key=lambda a: parse_published_str(a.get("published", "")) or safe_mktime(a.get("published_parsed")), reverse=True)
+        random.shuffle(merged[cat])
 
     # Re-assign trending/popular to use all articles (for rich images)
     # uni uses articles from DZ_UNI + AR_UNI RSS sources only
@@ -1291,13 +1462,13 @@ def main():
     for k in merged:
         for a in merged[k]:
             if a.get("text"):
-                cleaned = _clean_fluff(a["text"])
+                cleaned = _clean_fluff(a["text"], a.get("title", ""))
                 if cleaned != a["text"]:
                     cleaned_count += 1
                 a["text"] = cleaned
     for a in all_articles:
         if a.get("text"):
-            a["text"] = _clean_fluff(a["text"])
+            a["text"] = _clean_fluff(a["text"], a.get("title", ""))
     if cleaned_count:
         print(f"  Cleaned {cleaned_count} articles from fluff")
 
@@ -1334,7 +1505,7 @@ def main():
             "source": esc(a["source"]),
             "sc": a["source_color"],
             "img": esc(a.get("image") or ""),
-            "pub": esc(a["published"][:16]),
+            "pub": esc(a["published"][:20]),
         })
     _js_safe = lambda s: s.replace('<', '\\u003c').replace('>', '\\u003e')
     ft_json = _js_safe(json.dumps(ft_data_js, ensure_ascii=False))

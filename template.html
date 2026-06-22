@@ -123,7 +123,7 @@ var _tickerIdx=0;
 document.getElementById('tickerText').addEventListener('click',function(){
 if(tk.length&&tk[_tickerIdx]&&tk[_tickerIdx].id){var card=document.querySelector('.ac[data-id="'+tk[_tickerIdx].id+'"],.sb-link[data-id="'+tk[_tickerIdx].id+'"]');if(card)openModal(card);}});
 
-(function rf(){var fi=0;setInterval(function(){if(!ftData||ftData.length<2)return;fi=(fi+1)%ftData.length;var d=ftData[fi];var el=document.getElementById('ftRotate');if(!el)return;var img=d.img?'<div class="ftr-img"><img src="'+d.img+'" alt="" loading="lazy" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div class="ftr-overlay"></div></div>':'<div class="ftr-img ftr-no-img"><div class="ii">📰</div></div>';el.style.opacity='0';setTimeout(function(){el.innerHTML='<div class="ftr-art"><div class="ftr-inner">'+img+'<div class="ftr-body"><span class="ftr-src" style="background:'+d.sc+'">'+d.source+'</span><div class="ftr-title">'+d.title+'</div><div class="ftr-summary">'+d.summary+'</div><div class="ftr-meta"><span>'+d.pub+'</span></div></div></div></div>';el.style.opacity='1'},400)},6000)})();
+(function rf(){var fi=0;setInterval(function(){if(!ftData||ftData.length<2)return;fi=(fi+1)%ftData.length;var d=ftData[fi];var el=document.getElementById('ftRotate');if(!el)return;var img=d.img?'<div class="ftr-img"><img src="'+d.img+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div class="ftr-overlay"></div></div>':'<div class="ftr-img ftr-no-img"><div class="ii">📰</div></div>';el.style.opacity='0';setTimeout(function(){el.innerHTML='<div class="ftr-art"><div class="ftr-inner">'+img+'<div class="ftr-body"><span class="ftr-src" style="background:'+d.sc+'">'+d.source+'</span><div class="ftr-title">'+d.title+'</div><div class="ftr-summary">'+d.summary+'</div><div class="ftr-meta"><span>'+d.pub+'</span></div></div></div></div>';el.style.opacity='1'},400)},6000)})();
 
 function initLM(){document.querySelectorAll('.lm-btn').forEach(function(b){b.remove()});
 document.querySelectorAll('.gr').forEach(function(grid){var items=grid.querySelectorAll('.a');if(items.length<=40)return;
@@ -152,8 +152,8 @@ document.getElementById('modSrc').style.background=srcColor||'#666';
 document.getElementById('modTitle').textContent=title||'';
 var bodyEl=document.getElementById('modBody');
 var html='';
-    if(videoId){html+='<div style="position:relative;padding-bottom:56.25%;height:0;background:#000;border-radius:4px;overflow:hidden"><iframe src="https://www.youtube.com/embed/'+videoId+'" style="position:absolute;inset:0;width:100%;height:100%" frameborder="0" allowfullscreen loading="lazy"></iframe></div>'}
-    if(txt&&!videoId){html+='<p>'+txt.replace(/\n\n/g,'</p><p>')+'</p>'}
+    if(videoId){html+='<div style="position:relative;padding-bottom:56.25%;height:0;background:#000;border-radius:4px;overflow:hidden;margin-bottom:16px"><iframe src="https://www.youtube.com/embed/'+videoId+'" style="position:absolute;inset:0;width:100%;height:100%" frameborder="0" allowfullscreen loading="lazy"></iframe></div>'}
+    if(txt){html+='<p>'+txt.replace(/\n\n/g,'</p><p>')+'</p>'}
     if(!txt&&!videoId){html+='<p style="color:var(--text3);font-size:14px">⚠️ لم نتمكن من جلب النص التلقائي. يمكنك قراءة المقال في المصدر الأصلي أسفل الصفحة</p>'}
 
 bodyEl.innerHTML=html;
