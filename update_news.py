@@ -7,7 +7,7 @@ from jinja2 import Template
 
 socket.setdefaulttimeout(20)
 ALGERIA_TZ = timezone(timedelta(hours=1))
-BASE_URL = "https://dz-akhbar.surge.sh"
+BASE_URL = "https://1ymenn.github.io/dz-akhbar"
 CACHE_FILE = "cache.json"
 HASH_FILE = "content_hash.txt"
 TEMPLATE_FILE = "template.html"
@@ -990,7 +990,7 @@ def print_validation_report(stats):
             print(f"  [{src}] {s['total']} articles - {', '.join(issues)}")
     print(f" {'='*50}\n")
 
-def validate_live_site(url="https://dz-akhbar.surge.sh"):
+def validate_live_site(url="https://1ymenn.github.io/dz-akhbar"):
     """Pre-update health check - verify live site is working."""
     import urllib.request
     import urllib.error
@@ -1577,7 +1577,7 @@ def health_check(url, retries=3, delay=10):
     return False
 
 if __name__ == "__main__":
-    SITE_URL = "https://dz-akhbar.surge.sh"
+    SITE_URL = "https://1ymenn.github.io/dz-akhbar"
     once = "--once" in sys.argv
     while True:
 
@@ -1587,14 +1587,7 @@ if __name__ == "__main__":
         print(f"Total build time: {elapsed:.1f}s")
         if changed:
             if not once:
-                print("\nDeploying to Surge.sh...")
-                npx = "npx" if os.name != "nt" else "npx.cmd"
-                r = subprocess.run([npx, "surge", "./", "https://dz-akhbar.surge.sh"],
-                                   timeout=300)
-                if r.returncode == 0:
-                    print("Deploy successful!")
-                else:
-                    print("Deploy failed (return code: %d). Site may not have updated." % r.returncode)
+                print("\nDeploy handled by GitHub Actions...")
 
                 # Post-update health check (3x)
                 print(f"Post-update health check for {SITE_URL}...")

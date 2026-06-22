@@ -218,7 +218,7 @@ def generate_report(stats, news_data=None):
     L.append("")
     L.append("=" * 50)
     L.append(f"وقت الانشاء: {today.strftime('%H:%M:%S')}")
-    L.append(f"الموقع: https://dz-akhbar.surge.sh")
+    L.append(f"الموقع: https://1ymenn.github.io/dz-akhbar")
     L.append("=" * 50)
     
     return "\n".join(L)
