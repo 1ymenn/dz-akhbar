@@ -9,6 +9,12 @@ on:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
   update:
@@ -27,15 +33,25 @@ jobs:
       - name: Generate news
         run: python update_news.py --once
 
-      - name: Deploy to Surge
-        env:
-          SURGE_LOGIN: ${{ secrets.SURGE_LOGIN }}
-          SURGE_TOKEN: ${{ secrets.SURGE_TOKEN }}
-        run: npx surge --project ./ --domain https://dz-akhbar.surge.sh
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: update
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   report:
     runs-on: ubuntu-latest
-    needs: update
+    needs: deploy
     steps:
       - uses: actions/checkout@v4
 
