@@ -735,9 +735,6 @@ async def async_fetch_all(regions, max_per_source):
             link = a.get("link")
             if not link:
                 return
-            # Skip page fetch for Al-Moubad (always 404)
-            if a.get("source_clean") == "الموعد":
-                return
             html, _ = await async_fetch_page(session, link, sem)
             if html:
                 # Extract text: try JSON-LD articleBody first (most reliable)
