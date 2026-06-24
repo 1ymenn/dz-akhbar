@@ -1646,6 +1646,36 @@ def build_featured(art):
 def build_badges(rid):
     return "".join(f'<span class="sb-b" style="background:{s["c"]}" data-badge="{s["n"]}">{s["n"]}</span>' for s in REGIONS[rid]["latest"])
 
+def build_news_schema(articles, max_items=30):
+    """Generate NewsArticle JSON-LD schema for Google News."""
+    items = []
+    for a in articles[:max_items]:
+        title = a.get("title", "")
+        link = a.get("link", "")
+        img = a.get("image", "")
+        source = a.get("source", "")
+        published = a.get("published", "")
+        summary = a.get("summary", "")
+        if not title or not link:
+            continue
+        item = {
+            "@context": "https://schema.org",
+            "@type": "NewsArticle",
+            "headline": title[:110],
+            "url": link,
+            "datePublished": published,
+            "author": {"@type": "Organization", "name": source},
+            "publisher": {"@type": "Organization", "name": source},
+            "description": summary[:200] if summary else "",
+        }
+        if img:
+            item["image"] = img
+        items.append(item)
+    if not items:
+        return ""
+    schema = {"@context": "https://schema.org", "@graph": items}
+    return f'<script type="application/ld+json">{json.dumps(schema, ensure_ascii=False)}</script>'
+
 def generate_sitemap(all_articles):
     links = set()
     for a in all_articles:
@@ -1945,6 +1975,8 @@ def main():
     rg_js = {"latest": len(merged["latest"]), "trending": len(merged["trending"]), "popular": len(merged["popular"]), "uni": len(merged["uni"])}
     rg_json = _js_safe(json.dumps(rg_js, ensure_ascii=False))
 
+    news_schema = build_news_schema(merged["latest"][:30])
+
     with open(os.path.join(base, TEMPLATE_FILE), "r", encoding="utf-8") as f:
         tmpl = Template(f.read())
     build_timestamp = int(time.time())
@@ -1958,6 +1990,7 @@ def main():
         rg_json=rg_json, ticker_json=ticker_json, ft_json=ft_json,
         sb_pop=sb_pop, sb_uni=sb_uni,
         build_timestamp=build_timestamp,
+        news_schema=news_schema,
     )
 
     outpath = os.path.join(base, "index.html")

@@ -2,7 +2,13 @@
 <html lang="ar" dir="rtl">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="description" content="{{ meta_desc }}">
+<meta http-equiv="Cache-Control" content="public, max-age=300, s-maxage=600">
+<meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+<meta name="googlebot" content="index, follow">
+<link rel="canonical" href="https://1ymenn.github.io/dz-akhbar/">
 <title>{{ title }}</title>
+{{ news_schema }}
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#e74c3c">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -201,6 +207,20 @@ var t=e.target.closest('.ac[data-link],.sb-link[data-link]');if(t){openModal(t);
 var s=e.target.closest('.sb-btn[data-share]');if(s){e.stopPropagation();shareArticle(s);return}});
 initLM();setTimeout(initLM,200);
 if('serviceWorker' in navigator)navigator.serviceWorker.register('/service-worker.js').catch(function(){});
+
+var _prefetched={};
+document.addEventListener('mouseover',function(e){
+var t=e.target.closest('.ac[data-link],.sb-link[data-link]');
+if(!t)return;var url=t.getAttribute('data-link');
+if(!url||_prefetched[url])return;_prefetched[url]=1;
+var l=document.createElement('link');l.rel='prefetch';l.href=url;l.as='document';
+document.head.appendChild(l);});
+document.addEventListener('touchstart',function(e){
+var t=e.target.closest('.ac[data-link],.sb-link[data-link]');
+if(!t)return;var url=t.getAttribute('data-link');
+if(!url||_prefetched[url])return;_prefetched[url]=1;
+var l=document.createElement('link');l.rel='prefetch';l.href=url;l.as='document';
+document.head.appendChild(l);});
 
 (function hybridRefresh(){
 setInterval(function(){
