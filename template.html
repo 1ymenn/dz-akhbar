@@ -21,7 +21,8 @@
 <div class="flag-bar"></div>
 <div class="top-bar"><div class="ti">
 <div class="tb-r"><span class="clock" id="liveClock"></span>
-<button onclick="tgD()" class="dt-btn" id="dT">🌙</button></div></div></div>
+<button onclick="tgD()" class="dt-btn" id="dT">🌙</button>
+<button onclick="tgDS()" class="dt-btn" id="dS" title="الوضع الاقتصادي">📶</button></div></div></div>
 
 <div class="masthead"><div class="mh-inner">
 <div class="mh-title"><span class="red">جريـدة</span> <span class="gold">الجزائر</span></div>
@@ -112,6 +113,20 @@ document.getElementById('dT').textContent=d?'☀️':'🌙';
 document.getElementById('fDT').textContent=d?'☀️':'🌙';}
 function tgD(){var d=document.body.classList.contains('light');
 localStorage.setItem('darkMode',d);applyDark(d);}
+
+function applyDS(on){
+document.body.classList.toggle('ds',on);
+document.getElementById('dS').textContent=on?'📷':'📶';
+document.getElementById('dS').title=on?'إظهار الصور':'الوضع الاقتصادي';
+var imgs=document.querySelectorAll('img[data-src]');
+imgs.forEach(function(img){
+if(on){if(img.src&&img.src!==location.href){img.setAttribute('data-src',img.src);img.removeAttribute('src')}img.style.background='#222'}
+else{var ds=img.getAttribute('data-src');if(ds&&!img.src){img.src=ds}img.style.background=''}});
+}
+function tgDS(){var on=!document.body.classList.contains('ds');
+localStorage.setItem('dataSaver',on);applyDS(on);}
+var savedDS=localStorage.getItem('dataSaver');
+if(savedDS==='true'){applyDS(true)}
 var savedDM=localStorage.getItem('darkMode');
 if(savedDM!==null){applyDark(savedDM==='true')}
 else{applyDark(window.matchMedia('(prefers-color-scheme: dark)').matches);

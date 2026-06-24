@@ -1571,7 +1571,7 @@ def build_articles(articles):
         c2 = colors[(hash(t)+1) % len(colors)]
         if img:
             ie = esc(img)
-            ih = f'<div class="ai has-img" style="background:linear-gradient(135deg,{c1},{c2})"><img src="{ie}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div class="io"></div></div>'
+            ih = f'<div class="ai has-img" style="background:linear-gradient(135deg,{c1},{c2})"><img src="{ie}" data-src="{ie}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div class="io"></div></div>'
         else:
             ic = ["📰","📋","📌","🔖","📊","📈","📑","🗞️"][hash(t) % 8]
             ih = f'<div class="ai no-img" style="background:linear-gradient(135deg,{c1},{c2})"><div class="ii">{ic}</div></div>'
@@ -1637,7 +1637,7 @@ def build_featured(art):
     c2 = colors[(hash(t)+1) % len(colors)]
     if img:
         ie = esc(img)
-        ih = f'<div class="ftr-img" style="background:linear-gradient(135deg,{c1},{c2})"><img src="{ie}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div class="ftr-overlay"></div></div>'
+        ih = f'<div class="ftr-img" style="background:linear-gradient(135deg,{c1},{c2})"><img src="{ie}" data-src="{ie}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div class="ftr-overlay"></div></div>'
     else:
         ih = f'<div class="ftr-img ftr-no-img" style="background:linear-gradient(135deg,{c1},{c2})"><div class="ii">📰</div></div>'
     el = sanitize_url(art["link"])
@@ -1718,6 +1718,8 @@ body{font-family:'Noto Sans Arabic','Cairo',sans-serif;background:var(--bg);colo
 .clock{color:#D4A017;font-weight:700;font-size:14px;direction:ltr;display:inline-block;letter-spacing:0.5px}
 .dt-btn{padding:6px 14px;border-radius:18px;font-size:12px;font-weight:700;cursor:pointer;background:transparent;color:#D4A017;border:1.5px solid #D4A017;transition:all .25s;font-family:inherit}
 .dt-btn:hover{background:#D4A017;color:#1A1A1A}
+.ds img[data-src]{min-height:80px;background:#222!important}
+body.ds .ai{background:#1a1a1a!important}
 .masthead{border-bottom:1px solid var(--line);padding:28px 0 20px;text-align:center}
 .mh-inner{max-width:1200px;margin:0 auto;padding:0 24px}
 .mh-title{font-family:'Cairo',sans-serif;font-size:52px;font-weight:900;letter-spacing:1px;color:var(--text);line-height:1.2}
