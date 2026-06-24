@@ -75,9 +75,32 @@ def _clean_fluff(text, title=""):
         t = re.escape(title.strip())
         text = re.sub(r'^' + t + r'[\s\n]*', '', text).strip()
     fluff_starts = ['شارك غرِّد أرسل', 'غرِّد أرسل', 'شارك غرّد', 'غرّد أرسل',
-                    'شـارك', 'نشر الخبر', 'انشر الخبر']
+                    'شـارك', 'نشر الخبر', 'انشر الخبر', 'شارك', 'غرّد', 'غرد',
+                    'أرسل الخبر', 'انشر', 'شارك على', 'غرد على', 'شارك في',
+                    'تابعنا على', 'تابعونا على', 'Follow us', 'Share this',
+                    'انقر هنا', 'اضغط هنا', 'اضغط على', 'اقرأ أيضاً',
+                    'اقرأ المزيد', 'المزيد من الأخبار', 'اخبار مشابهة',
+                    'مقالات مشابهة', 'موضوعات ذات صلة', 'مقالات قد تهمك',
+                    'اخبار قد تهمك', 'شاهد أيضاً', 'طالع أيضاً', 'الاخبار ذات الصلة',
+                    'لا تنسى مشاركة الخبر', 'لا تنسى المشاركة', 'شاركونا رأيكم',
+                    'أضفتعليقك', 'اكتب تعليقك', 'شارك برأيك', 'علّق على الخبر',
+                    'علّق على', 'اضف تعليقاً', 'اكتب تعليقاً', 'نشر الخبر على',
+                    'شارك الخبر على', 'انشر الخبر على', 'غرّد الخبر',
+                    'ابعث الخبر', 'أرسل لصديق', 'ارسل لصديق',
+                    'irim_share', 'whatsapp', 'facebook', 'twitter', 'telegram',
+                    'linkedin', 'pinterest', 'email', 'reddit']
     fluff_full = ['التواصل الاجتماعي', 'رابط مختصر', 'تم نسخ الرابط',
-                  'شـارك', 'اضغط هنا', 'شارك في التعليقات', 'علّق على الخبر']
+                  'شـارك', 'اضغط هنا', 'شارك في التعليقات', 'علّق على الخبر',
+                  'شارك الخبر', 'انشر الخبر', 'غرّد الخبر', 'أرسل الخبر',
+                  'متابعة', 'المزيد', 'اقرأ أيضاً', 'المزيد من الأخبار',
+                  'اخبار مشابهة', 'مقالات مشابهة', 'موضوعات ذات صلة',
+                  'شارك على واتساب', 'شارك على فيسبوك', 'شارك على تويتر',
+                  'شارك على لينكدإن', 'انشر على واتساب', 'انشر على فيسبوك',
+                  'irim_share_whatsapp', 'irim_share_facebook', 'irim_share_twitter',
+                  'irim_share_telegram', 'irim_share_linkedin', 'irim_share_email',
+                  'irim_share_pinterest', 'irim_share_reddit', 'irim_share_copy',
+                  'irim_share', 'share', 'share this', 'share on whatsapp',
+                  'share on facebook', 'share on twitter', 'share on telegram']
     fluff_end_re = [
         r'[\n\s]*إضغط\s+على\s+الصورة\s+لتحميل\s+تطبيق\s+النهار.*$',
         r'[\n\s]*إضغط\s+على\s+الصورة\s+لتحميل\s+تطبيق.*$',
@@ -95,6 +118,260 @@ def _clean_fluff(text, title=""):
         r'[\n\s]*جميع\s+الحقوق\s+محفوظة.*$',
         r'[\n\s]*مختصر.*نسخ.*الرابط.*$',
         r'[\n\s]*رابط\s+مختصر.*$',
+        r'[\n\s]*(?: IMDb |IMDB |imdb ).*$',
+        r'[\n\s]*amazon\.com.*$',
+        r'[\n\s]*aliexpress\.com.*$',
+        r'[\n\s]*ebay\.com.*$',
+        r'[\n\s]*etsy\.com.*$',
+        r'[\n\s]*walmart\.com.*$',
+        r'[\n\s]*target\.com.*$',
+        r'[\n\s]*bestbuy\.com.*$',
+        r'[\n\s]*amazon\.ca.*$',
+        r'[\n\s]*amazon\.co\.uk.*$',
+        r'[\n\s]*amazon\.de.*$',
+        r'[\n\s]*amazon\.fr.*$',
+        r'[\n\s]*amazon\.it.*$',
+        r'[\n\s]*amazon\.es.*$',
+        r'[\n\s]*amazon\.co\.jp.*$',
+        r'[\n\s]*amazon\.com\.au.*$',
+        r'[\n\s]*amazon\.in.*$',
+        r'[\n\s]*amazon\.sg.*$',
+        r'[\n\s]*amazon\.nl.*$',
+        r'[\n\s]*amazon\.be.*$',
+        r'[\n\s]*amazon\.pl.*$',
+        r'[\n\s]*amazon\.se.*$',
+        r'[\n\s]*amazon\.com\.br.*$',
+        r'[\n\s]*amazon\.com\.mx.*$',
+        r'[\n\s]*amazon\.ae.*$',
+        r'[\n\s]*amazon\.sa.*$',
+        r'[\n\s]*amazon\.eg.*$',
+        r'[\n\s]*amazon\.tr.*$',
+        r'[\n\s]*amazon\.co\.za.*$',
+        r'[\n\s]*amazon\.co\.kr.*$',
+        r'[\n\s]*apple\.com.*$',
+        r'[\n\s]*google\.com.*$',
+        r'[\n\s]*microsoft\.com.*$',
+        r'[\n\s]*ebay\.co\.uk.*$',
+        r'[\n\s]*ebay\.de.*$',
+        r'[\n\s]*ebay\.fr.*$',
+        r'[\n\s]*ebay\.it.*$',
+        r'[\n\s]*ebay\.es.*$',
+        r'[\n\s]*ebay\.ca.*$',
+        r'[\n\s]*ebay\.com\.au.*$',
+        r'[\n\s]*ebay\.nl.*$',
+        r'[\n\s]*ebay\.be.*$',
+        r'[\n\s]*ebay\.pl.*$',
+        r'[\n\s]*ebay\.at.*$',
+        r'[\n\s]*ebay\.ch.*$',
+        r'[\n\s]*ebay\.ie.*$',
+        r'[\n\s]*ebay\.dk.*$',
+        r'[\n\s]*ebay\.fi.*$',
+        r'[\n\s]*ebay\.se.*$',
+        r'[\n\s]*ebay\.no.*$',
+        r'[\n\s]*ebay\.pt.*$',
+        r'[\n\s]*ebay\.cz.*$',
+        r'[\n\s]*ebay\.ro.*$',
+        r'[\n\s]*ebay\.hu.*$',
+        r'[\n\s]*ebay\.sk.*$',
+        r'[\n\s]*ebay\.bg.*$',
+        r'[\n\s]*ebay\.hr.*$',
+        r'[\n\s]*ebay\.si.*$',
+        r'[\n\s]*ebay\.lt.*$',
+        r'[\n\s]*ebay\.lv.*$',
+        r'[\n\s]*ebay\.ee.*$',
+        r'[\n\s]*ebay\.cy.*$',
+        r'[\n\s]*ebay\.gr.*$',
+        r'[\n\s]*ebay\.mt.*$',
+        r'[\n\s]*ebay\.lu.*$',
+        r'[\n\s]*ebay\.mc.*$',
+        r'[\n\s]*ebay\.ad.*$',
+        r'[\n\s]*ebay\.sm.*$',
+        r'[\n\s]*ebay\.va.*$',
+        r'[\n\s]*ebay\.li.*$',
+        r'[\n\s]*ebay\.is.*$',
+        r'[\n\s]*ebay\.tr.*$',
+        r'[\n\s]*ebay\.ru.*$',
+        r'[\n\s]*ebay\.ua.*$',
+        r'[\n\s]*ebay\.by.*$',
+        r'[\n\s]*ebay\.kz.*$',
+        r'[\n\s]*ebay\.uz.*$',
+        r'[\n\s]*ebay\.kg.*$',
+        r'[\n\s]*ebay\.tj.*$',
+        r'[\n\s]*ebay\.tm.*$',
+        r'[\n\s]*ebay\.az.*$',
+        r'[\n\s]*ebay\.am.*$',
+        r'[\n\s]*ebay\.ge.*$',
+        r'[\n\s]*ebay\.il.*$',
+        r'[\n\s]*ebay\.lb.*$',
+        r'[\n\s]*ebay\.jo.*$',
+        r'[\n\s]*ebay\.iq.*$',
+        r'[\n\s]*ebay\.ir.*$',
+        r'[\n\s]*ebay\.sy.*$',
+        r'[\n\s]*ebay\.ye.*$',
+        r'[\n\s]*ebay\.om.*$',
+        r'[\n\s]*ebay\.qa.*$',
+        r'[\n\s]*ebay\.kw.*$',
+        r'[\n\s]*ebay\.bh.*$',
+        r'[\n\s]*ebay\.ae.*$',
+        r'[\n\s]*ebay\.sa.*$',
+        r'[\n\s]*ebay\.eg.*$',
+        r'[\n\s]*ebay\.ma.*$',
+        r'[\n\s]*ebay\.dz.*$',
+        r'[\n\s]*ebay\.tn.*$',
+        r'[\n\s]*ebay\.ly.*$',
+        r'[\n\s]*ebay\.sd.*$',
+        r'[\n\s]*ebay\.so.*$',
+        r'[\n\s]*ebay\.dj.*$',
+        r'[\n\s]*ebay\.er.*$',
+        r'[\n\s]*ebay\.et.*$',
+        r'[\n\s]*ebay\.ke.*$',
+        r'[\n\s]*ebay\.tz.*$',
+        r'[\n\s]*ebay\.ug.*$',
+        r'[\n\s]*ebay\.rw.*$',
+        r'[\n\s]*ebay\.bi.*$',
+        r'[\n\s]*ebay\.mg.*$',
+        r'[\n\s]*ebay\.mu.*$',
+        r'[\n\s]*ebay\.sc.*$',
+        r'[\n\s]*ebay\.mv.*$',
+        r'[\n\s]*ebay\.lk.*$',
+        r'[\n\s]*ebay\.np.*$',
+        r'[\n\s]*ebay\.bt.*$',
+        r'[\n\s]*ebay\.bd.*$',
+        r'[\n\s]*ebay\.mm.*$',
+        r'[\n\s]*ebay\.th.*$',
+        r'[\n\s]*ebay\.vn.*$',
+        r'[\n\s]*ebay\.kh.*$',
+        r'[\n\s]*ebay\.la.*$',
+        r'[\n\s]*ebay\.ph.*$',
+        r'[\n\s]*ebay\.my.*$',
+        r'[\n\s]*ebay\.sg.*$',
+        r'[\n\s]*ebay\.id.*$',
+        r'[\n\s]*ebay\.bn.*$',
+        r'[\n\s]*ebay\.tl.*$',
+        r'[\n\s]*ebay\.pg.*$',
+        r'[\n\s]*ebay\.fj.*$',
+        r'[\n\s]*ebay\.sb.*$',
+        r'[\n\s]*ebay\.vu.*$',
+        r'[\n\s]*ebay\.ws.*$',
+        r'[\n\s]*ebay\.to.*$',
+        r'[\n\s]*ebay\.fj.*$',
+        r'[\n\s]*ebay\.mh.*$',
+        r'[\n\s]*ebay\.pw.*$',
+        r'[\n\s]*ebay\.fm.*$',
+        r'[\n\s]*ebay\.ki.*$',
+        r'[\n\s]*ebay\.na.*$',
+        r'[\n\s]*ebay\.tv.*$',
+        r'[\n\s]*ebay\.nr.*$',
+        r'[\n\s]*aliexpress\.com.*$',
+        r'[\n\s]*aliexpress\.ru.*$',
+        r'[\n\s]*aliexpress\.pt.*$',
+        r'[\n\s]*aliexpress\.es.*$',
+        r'[\n\s]*aliexpress\.fr.*$',
+        r'[\n\s]*aliexpress\.de.*$',
+        r'[\n\s]*aliexpress\.it.*$',
+        r'[\n\s]*aliexpress\.nl.*$',
+        r'[\n\s]*aliexpress\.pl.*$',
+        r'[\n\s]*aliexpress\.se.*$',
+        r'[\n\s]*aliexpress\.dk.*$',
+        r'[\n\s]*aliexpress\.fi.*$',
+        r'[\n\s]*aliexpress\.no.*$',
+        r'[\n\s]*aliexpress\.be.*$',
+        r'[\n\s]*aliexpress\.at.*$',
+        r'[\n\s]*aliexpress\.ch.*$',
+        r'[\n\s]*aliexpress\.ie.*$',
+        r'[\n\s]*aliexpress\.cz.*$',
+        r'[\n\s]*aliexpress\.ro.*$',
+        r'[\n\s]*aliexpress\.hu.*$',
+        r'[\n\s]*aliexpress\.sk.*$',
+        r'[\n\s]*aliexpress\.bg.*$',
+        r'[\n\s]*aliexpress\.hr.*$',
+        r'[\n\s]*aliexpress\.si.*$',
+        r'[\n\s]*aliexpress\.lt.*$',
+        r'[\n\s]*aliexpress\.lv.*$',
+        r'[\n\s]*aliexpress\.ee.*$',
+        r'[\n\s]*aliexpress\.cy.*$',
+        r'[\n\s]*aliexpress\.gr.*$',
+        r'[\n\s]*aliexpress\.mt.*$',
+        r'[\n\s]*aliexpress\.lu.*$',
+        r'[\n\s]*aliexpress\.mc.*$',
+        r'[\n\s]*aliexpress\.ad.*$',
+        r'[\n\s]*aliexpress\.sm.*$',
+        r'[\n\s]*aliexpress\.va.*$',
+        r'[\n\s]*aliexpress\.li.*$',
+        r'[\n\s]*aliexpress\.is.*$',
+        r'[\n\s]*aliexpress\.tr.*$',
+        r'[\n\s]*aliexpress\.ru.*$',
+        r'[\n\s]*aliexpress\.ua.*$',
+        r'[\n\s]*aliexpress\.by.*$',
+        r'[\n\s]*aliexpress\.kz.*$',
+        r'[\n\s]*aliexpress\.uz.*$',
+        r'[\n\s]*aliexpress\.kg.*$',
+        r'[\n\s]*aliexpress\.tj.*$',
+        r'[\n\s]*aliexpress\.tm.*$',
+        r'[\n\s]*aliexpress\.az.*$',
+        r'[\n\s]*aliexpress\.am.*$',
+        r'[\n\s]*aliexpress\.ge.*$',
+        r'[\n\s]*aliexpress\.il.*$',
+        r'[\n\s]*aliexpress\.lb.*$',
+        r'[\n\s]*aliexpress\.jo.*$',
+        r'[\n\s]*aliexpress\.iq.*$',
+        r'[\n\s]*aliexpress\.ir.*$',
+        r'[\n\s]*aliexpress\.sy.*$',
+        r'[\n\s]*aliexpress\.ye.*$',
+        r'[\n\s]*aliexpress\.om.*$',
+        r'[\n\s]*aliexpress\.qa.*$',
+        r'[\n\s]*aliexpress\.kw.*$',
+        r'[\n\s]*aliexpress\.bh.*$',
+        r'[\n\s]*aliexpress\.ae.*$',
+        r'[\n\s]*aliexpress\.sa.*$',
+        r'[\n\s]*aliexpress\.eg.*$',
+        r'[\n\s]*aliexpress\.ma.*$',
+        r'[\n\s]*aliexpress\.dz.*$',
+        r'[\n\s]*aliexpress\.tn.*$',
+        r'[\n\s]*aliexpress\.ly.*$',
+        r'[\n\s]*aliexpress\.sd.*$',
+        r'[\n\s]*aliexpress\.so.*$',
+        r'[\n\s]*aliexpress\.dj.*$',
+        r'[\n\s]*aliexpress\.er.*$',
+        r'[\n\s]*aliexpress\.et.*$',
+        r'[\n\s]*aliexpress\.ke.*$',
+        r'[\n\s]*aliexpress\.tz.*$',
+        r'[\n\s]*aliexpress\.ug.*$',
+        r'[\n\s]*aliexpress\.rw.*$',
+        r'[\n\s]*aliexpress\.bi.*$',
+        r'[\n\s]*aliexpress\.mg.*$',
+        r'[\n\s]*aliexpress\.mu.*$',
+        r'[\n\s]*aliexpress\.sc.*$',
+        r'[\n\s]*aliexpress\.mv.*$',
+        r'[\n\s]*aliexpress\.lk.*$',
+        r'[\n\s]*aliexpress\.np.*$',
+        r'[\n\s]*aliexpress\.bt.*$',
+        r'[\n\s]*aliexpress\.bd.*$',
+        r'[\n\s]*aliexpress\.mm.*$',
+        r'[\n\s]*aliexpress\.th.*$',
+        r'[\n\s]*aliexpress\.vn.*$',
+        r'[\n\s]*aliexpress\.kh.*$',
+        r'[\n\s]*aliexpress\.la.*$',
+        r'[\n\s]*aliexpress\.ph.*$',
+        r'[\n\s]*aliexpress\.my.*$',
+        r'[\n\s]*aliexpress\.sg.*$',
+        r'[\n\s]*aliexpress\.id.*$',
+        r'[\n\s]*aliexpress\.bn.*$',
+        r'[\n\s]*aliexpress\.tl.*$',
+        r'[\n\s]*aliexpress\.pg.*$',
+        r'[\n\s]*aliexpress\.fj.*$',
+        r'[\n\s]*aliexpress\.sb.*$',
+        r'[\n\s]*aliexpress\.vu.*$',
+        r'[\n\s]*aliexpress\.ws.*$',
+        r'[\n\s]*aliexpress\.to.*$',
+        r'[\n\s]*aliexpress\.fj.*$',
+        r'[\n\s]*aliexpress\.mh.*$',
+        r'[\n\s]*aliexpress\.pw.*$',
+        r'[\n\s]*aliexpress\.fm.*$',
+        r'[\n\s]*aliexpress\.ki.*$',
+        r'[\n\s]*aliexpress\.na.*$',
+        r'[\n\s]*aliexpress\.tv.*$',
+        r'[\n\s]*aliexpress\.nr.*$',
     ]
     junk_line_re = re.compile(
         r'^(?:'
@@ -114,6 +391,17 @@ def _clean_fluff(text, title=""):
         r'|^(?:مقدمة\s+.+)$'
         r'|^(?:[^\u0600-\u06FF]{0,10}(?:احتفال|صورة|هل تعلم|شاهد|فيديو|مقطع)[^\n]{0,200})$'
         r'|^[\u0600-\u06FF\s]{3,40}$'
+        r'|(?:share|whatsapp|facebook|twitter|telegram|linkedin|pinterest|email|reddit|irim_share|Share this|Follow us)'
+        r'|(?:شارك|غرّد|غرد|أرسل|انشر|تابعنا|تابعونا|اضغط هنا|انقر هنا)'
+        r'|(?:اقرأ أيضاً|اقرأ المزيد|المزيد من الأخبار|اخبار مشابهة|مقالات مشابهة)'
+        r'|(?:موضوعات ذات صلة|مقالات قد تهمك|اخبار قد تهمك|شاهد أيضاً|طالع أيضاً)'
+        r'|(?:لا تنسى مشاركة الخبر|لا تنسى المشاركة|شاركونا رأيكم)'
+        r'|(?:أضفتعليقك|اكتب تعليقك|شارك برأيك|علّق على الخبر)'
+        r'|(?:اضف تعليقاً|اكتب تعليقاً|نشر الخبر على|شارك الخبر على)'
+        r'|(?:انشر الخبر على|غرّد الخبر|ابعث الخبر|أرسل لصديق|ارسل لصديق)'
+        r'|(?:irim_share_whatsapp|irim_share_facebook|irim_share_twitter|irim_share_telegram)'
+        r'|(?:irim_share_linkedin|irim_share_email|irim_share_pinterest|irim_share_reddit)'
+        r'|(?:irim_share_copy|irim_share)'
         r')',
         re.IGNORECASE | re.MULTILINE
     )
@@ -971,6 +1259,45 @@ def _fix_incomplete_text(text, title=""):
         if len(last_line) > 20:
             # Sentence is long enough, just add period
             text = text.rstrip() + '.'
+    # Check for common truncation patterns
+    truncation_patterns = [
+        r'[,،]\s*$',  # Ends with comma
+        r':\s*$',     # Ends with colon
+        r'[-–—]\s*$', # Ends with dash
+        r'\.\.\.\s*$',  # Ends with ellipsis
+        r'و\s*$',     # Ends with "and"
+        r'في\s*$',    # Ends with "in"
+        r'على\s*$',   # Ends with "on"
+        r'من\s*$',    # Ends with "from"
+        r'إلى\s*$',   # Ends with "to"
+        r'عن\s*$',    # Ends with "about"
+        r'بين\s*$',   # Ends with "between"
+        r'بعد\s*$',   # Ends with "after"
+        r'قبل\s*$',   # Ends with "before"
+        r'أن\s*$',    # Ends with "that"
+        r'إن\s*$',    # Ends with "that"
+        r'لا\s*$',    # Ends with "no"
+        r'لم\s*$',    # Ends with "did not"
+        r'لن\s*$',    # Ends with "will not"
+        r'قد\s*$',    # Ends with "may"
+        r'كان\s*$',   # Ends with "was"
+        r'يكون\s*$',  # Ends with "be"
+        r'هو\s*$',    # Ends with "he"
+        r'هي\s*$',    # Ends with "she"
+        r'هم\s*$',    # Ends with "they"
+        r'هن\s*$',    # Ends with "they (f)"
+        r'أنت\s*$',   # Ends with "you"
+        r'أنتِ\s*$',  # Ends with "you (f)"
+        r'أنتما\s*$', # Ends with "you (dual)"
+        r'أنتم\s*$',  # Ends with "you (pl)"
+        r'أنتن\s*$',  # Ends with "you (pl f)"
+        r'نحن\s*$',   # Ends with "we"
+        r'أنا\s*$',   # Ends with "I"
+    ]
+    for pat in truncation_patterns:
+        if re.search(pat, text):
+            text = text.rstrip('،,:-–— ') + '.'
+            break
     return text
 
 def fix_articles_before_publish(articles):
