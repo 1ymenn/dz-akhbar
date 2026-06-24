@@ -548,9 +548,10 @@ def clean_url(u):
     if 'elkhabar.com' in u:
         u = re.sub(r'/storage/images/original/', '/storage/images/article/g_', u)
         return u
-    # Upgrade RT thumbnail → original
-    u = re.sub(r'/thumbnail/', '/original/', u)
-    u = re.sub(r'/article/', '/original/', u)
+    # Upgrade RT thumbnail → original (only for RT domains)
+    if 'rtarabic.com' in u or 'mf.b37mrtl.ru' in u:
+        u = re.sub(r'/thumbnail/', '/original/', u)
+        u = re.sub(r'/article/', '/original/', u)
     return u
 
 def extract_image(entry):
