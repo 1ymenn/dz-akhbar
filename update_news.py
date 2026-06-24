@@ -938,6 +938,89 @@ def parse_published_str(published_str):
     return 0
 
 # ============================================================
+# PRE-PUBLISH FIXER: translate, complete, ensure periods
+# ============================================================
+def _is_arabic(text):
+    """Check if text is predominantly Arabic."""
+    if not text:
+        return False
+    arabic_chars = sum(1 for c in text if '\u0600' <= c <= '\u06FF')
+    return arabic_chars > len(text) * 0.3
+
+def _ensure_period(text):
+    """Ensure article text ends with a period."""
+    if not text:
+        return text
+    text = text.rstrip()
+    if text and text[-1] not in '.。!！?؟':
+        text += '.'
+    return text
+
+def _fix_incomplete_text(text, title=""):
+    """Fix incomplete/truncated article text."""
+    if not text:
+        return text
+    text = text.strip()
+    # If text is very short, it's likely incomplete
+    if len(text) < 50:
+        return ""
+    # Check if text ends mid-sentence (no punctuation)
+    last_line = text.split('\n')[-1].strip()
+    if last_line and last_line[-1] not in '.。!！?؟…':
+        # Try to complete the sentence
+        if len(last_line) > 20:
+            # Sentence is long enough, just add period
+            text = text.rstrip() + '.'
+    return text
+
+def fix_articles_before_publish(articles):
+    """Fix all articles before publishing: translate, complete, ensure periods."""
+    fixed_count = 0
+    translated_count = 0
+    period_count = 0
+    incomplete_count = 0
+
+    for a in articles:
+        txt = a.get("text", "")
+        if not txt:
+            continue
+
+        original = txt
+
+        # 1. Fix incomplete text
+        txt = _fix_incomplete_text(txt, a.get("title", ""))
+        if txt != original and len(txt) == 0:
+            incomplete_count += 1
+
+        # 2. Translate if not Arabic
+        if txt and not _is_arabic(txt):
+            try:
+                translated = GoogleTranslator(source='auto', target='ar').translate(txt[:5000])
+                if translated and len(translated) > 20:
+                    txt = translated
+                    translated_count += 1
+            except:
+                pass  # Keep original if translation fails
+
+        # 3. Ensure ends with period
+        if txt:
+            before = txt
+            txt = _ensure_period(txt)
+            if txt != before:
+                period_count += 1
+
+        if txt != a.get("text", ""):
+            a["text"] = txt
+            fixed_count += 1
+
+    return {
+        "fixed": fixed_count,
+        "translated": translated_count,
+        "periods_added": period_count,
+        "incomplete_removed": incomplete_count
+    }
+
+# ============================================================
 # ARTICLE VALIDATION & REPAIR
 # ============================================================
 def validate_articles(articles, session=None):
@@ -1387,6 +1470,11 @@ def main():
     repaired_text = stats["no_text"] - stats2["no_text"]
     repaired_img = stats["no_image"] - stats2["no_image"]
     print(f"  Repair results: {repaired_text} text fixed, {repaired_img} images fixed ({stats2['no_text']} text, {stats2['no_image']} images still missing)")
+
+    # Pre-publish fixer: translate, complete, ensure periods
+    print(f"\n  [PRE-PUBLISH] Fixing articles before publishing...")
+    fix_result = fix_articles_before_publish(all_articles)
+    print(f"  Pre-publish results: {fix_result['fixed']} fixed, {fix_result['translated']} translated, {fix_result['periods_added']} periods added, {fix_result['incomplete_removed']} incomplete removed")
 
     # Organize into regions/categories
     result = {"dz": {"latest":[], "trending":[], "popular":[], "uni":[]},
