@@ -4,6 +4,8 @@ cache.json
 content_hash.txt
 latest_news.json
 sitemap.xml
+index.html
 .opencode/
 .env
 token.json
+report_*.txt
