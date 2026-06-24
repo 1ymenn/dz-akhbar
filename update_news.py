@@ -1677,15 +1677,26 @@ def build_news_schema(articles, max_items=30):
     return f'<script type="application/ld+json">{json.dumps(schema, ensure_ascii=False)}</script>'
 
 def generate_sitemap(all_articles):
-    links = set()
+    links = {}
     for a in all_articles:
-        links.add(a["link"])
+        link = a.get("link", "")
+        if not link:
+            continue
+        pub = a.get("published", "")
+        links[link] = pub
     with open("sitemap.xml", "w", encoding="utf-8") as f:
         f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-        f.write('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n')
-        f.write(f'  <url><loc>{BASE_URL}/</loc><priority>1.0</priority></url>\n')
-        for url in list(links)[:500]:
-            f.write(f'  <url><loc>{esc(url)}</loc><priority>0.6</priority></url>\n')
+        f.write('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n')
+        f.write('  xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">\n')
+        f.write(f'  <url><loc>{BASE_URL}/</loc><changefreq>always</changefreq><priority>1.0</priority></url>\n')
+        today = datetime.now().strftime("%Y-%m-%d")
+        for url, pub in list(links.items())[:500]:
+            ts = parse_published_str(pub) or safe_mktime(None)
+            if ts:
+                lastmod = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
+            else:
+                lastmod = today
+            f.write(f'  <url><loc>{esc(url)}</loc><lastmod>{lastmod}</lastmod><changefreq>daily</changefreq><priority>0.7</priority></url>\n')
         f.write('</urlset>\n')
     print(f"  sitemap.xml: {len(links)} URLs")
 
