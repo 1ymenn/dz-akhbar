@@ -1561,6 +1561,8 @@ def build_articles(articles):
     for idx, a in enumerate(articles):
         t = esc(a["title"])
         sm = esc(a["summary"])[:200] if a["summary"] else ""
+        if sm:
+            sm = _ensure_period(sm)
         img = a.get("image")
         if img and re.search(r'nothumb|no[._-]?image|nothumbs_[dg]|placeholder|/default\.|DefaultImage|970x90', img, re.IGNORECASE):
             img = None
@@ -1577,6 +1579,7 @@ def build_articles(articles):
         raw_txt = a.get("text", "")
         if raw_txt:
             raw_txt = _clean_fluff(raw_txt, a.get("title", ""))
+            raw_txt = _ensure_period(raw_txt)
         txt = esc(raw_txt)
         lm = " lm" if idx >= 40 else ""
         r = a.get("region", "dz")
@@ -1610,6 +1613,7 @@ def build_sidebar_list(articles, max_items=6):
         s = esc(a["source"])
         c = a["source_color"]
         raw_txt = _clean_fluff(a.get("text", ""), a.get("title", "")) if a.get("text") else ""
+        raw_txt = _ensure_period(raw_txt)
         txt = esc(raw_txt)
         uid = hashlib.md5((a["title"] + a["link"]).encode()).hexdigest()[:8]
         vid = a.get("video")
@@ -1624,6 +1628,8 @@ def build_featured(art):
     if not art: return ""
     t = esc(art["title"])
     sm = esc(art["summary"])[:200] if art["summary"] else ""
+    if sm:
+        sm = _ensure_period(sm)
     img = art.get("image")
     colors = ["#667eea","#764ba2","#f093fb","#f5576c","#4facfe","#00f2fe","#43e97b","#38f9d7","#fa709a","#fee140","#a18cd1","#fbc2eb"]
     c1 = colors[hash(t) % len(colors)]
