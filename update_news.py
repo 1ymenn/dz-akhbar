@@ -86,7 +86,14 @@ def _clean_fluff(text, title=""):
                     'أضفتعليقك', 'اكتب تعليقك', '_share', 'Share',
                     'علّق على', 'اضف تعليقاً', 'اكتب تعليقاً', 'نشر الخبر على',
                     'انشر الخبر على', 'غرّد الخبر',
-                    'ابعث الخبر', 'أرسل لصديق', 'ارسل لصديق']
+                    'ابعث الخبر', 'أرسل لصديق', 'ارسل لصديق',
+                    'رجل أعمال وسياسي', 'رجل أعمال ورجل سياسي', 'رجل سياسي ورجل أعمال',
+                    'سياسي ورجل أعمال', 'رجل أعمال ورجل سياسي',
+                    'رجل أعمال وسياسي مغربي', 'رجل أعمال وسياسي عراقي',
+                    'رجل أعمال وسياسي سوري', 'رجل أعمال وسياسي لبناني',
+                    'رجل أعمال وسياسي جزائري', 'رجل أعمال وسياسي مصري',
+                    'رجل أعمال وسياسي تونسي', 'رجل أعمال وسيافي',
+                    'رجل أعمال وسيافي', 'رجل أعمال وسيافي']
     fluff_full = ['التواصل الاجتماعي', 'رابط مختصر', 'تم نسخ الرابط',
                   'شـارك', 'اضغط هنا', 'شارك في التعليقات', 'علّق على الخبر',
                   'شارك الخبر', 'انشر الخبر', 'غرّد الخبر', 'أرسل الخبر',
@@ -94,6 +101,11 @@ def _clean_fluff(text, title=""):
                   'اخبار مشابهة', 'مقالات مشابهة', 'موضوعات ذات صلة',
                   'شارك على واتساب', 'شارك على فيسبوك', 'شارك على تويتر',
                   'شارك على لينكدإن', 'انشر على واتساب', 'انشر على فيسبوك']
+    # Pattern to match image captions: "text, date (photographer/source)"
+    _img_caption_re = re.compile(
+        r'^.{5,120}(?:،|,)\s*\d{1,2}\s+\w+\s+\d{4}\s*\([^()]+/(?:getty|Getty|رويترز|Reuters|أناضول|الأناضول|فرانس برس|AFP| AFP)\)\s*$',
+        re.IGNORECASE
+    )
     fluff_end_re = [
         r'[\n\s]*إضغط\s+على\s+الصورة\s+لتحميل\s+تطبيق.*$',
         r'[\n\s]*للإطلاع\s+على\s+كل\s+الأخبار.*$',
@@ -141,6 +153,14 @@ def _clean_fluff(text, title=""):
         r'|^(?:غرّد\s|غرّد$|غرد\s|غرد$)'  # "غرّد" only at start of line
         r'|^(?:أرسل\s|أرسل$|انشر\s|انشر$)'  # "أرسل"/"انشر" only at start of line
         r'|^(?:تابعنا\s|تابعنا$|تابعونا\s|تابعونا$)'  # "تابعنا"/"تابعونا" only at start of line
+        r'|(?:\(\s*[^()]{2,40}\s*/\s*(?:getty|رويترز|أناضول|فرانس برس|الأناضول|afp|reuters|getty| AFP| Reuters)\s*\))'  # photo caption: (source/getty)
+        r'|^\s*\([^()]{0,10}(?:getty|رويترز|أناضول|فرانس برس|الأناضول|afp|reuters| AFP| Reuters)[^()]*\)\s*$'  # standalone caption line: ( Photographer/Getty)
+        r'|^\s*\w+\s+\d{4}\s*\([^()]+\)\s*$'  # standalone: "يونيو 2026 (photographer/source)"
+        r'|^\s*\d{1,2}\s+\w+\s+\d{4}\s*\([^()]+\)\s*$'  # "21 يونيو 2026 (photographer/source)"
+        r'|^\s*\w+\s+\w+\s*\d{4}\s*\([^()]+\)\s*$'  # "الدوار البيضاء، 7 أكتوبر 2023 (فرانس برس)"
+        r'|(?:رجل أعمال وسياسي|رجل أعمال ورجل سياسي|رجل سياسي ورجل أعمال)'  # person bio starts
+        r'|^(?:\w+\s+){1,3}(?:سياسي|رجل أعمال|رجل سياسي|رجل أعمال وسياسي|رجل أعمال ورجل سياسي)'  # person bio: "X رجل أعمال وسياسي"
+        r'|^(?:[^()]{5,80})\s*\(\s*[^()]{2,50}\s*/\s*(?:getty|رويترز|أناضول|فرانس برس|الأناضول|AFP|Reuters|Getty| AFP| Reuters)\s*\)\s*$'  # full caption: "text (photographer/source)"
         r')',
         re.IGNORECASE | re.MULTILINE
     )
@@ -151,6 +171,9 @@ def _clean_fluff(text, title=""):
         p_stripped = p.strip()
         # Skip entire paragraph if it's ONLY fluff
         if any(p_stripped.lower() == f.lower() for f in fluff_full):
+            continue
+        # Skip image captions
+        if _img_caption_re.match(p_stripped):
             continue
         # Remove junk lines within paragraph
         lines = p_stripped.split('\n')
