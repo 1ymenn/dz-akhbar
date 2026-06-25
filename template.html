@@ -59,8 +59,7 @@
 <button class="sub-t" data-t="trending" onclick="swT('trending')">🔥 الشائع</button>
 <button class="sub-t" data-t="popular" onclick="swT('popular')">⭐ الأكثر قراءة</button>
 <button class="sub-t" data-t="uni" onclick="swT('uni')">🎓 الجامعات و المعاهد</button>
-<button class="sub-t" data-t="trending_topics" onclick="swT('trending_topics')">📊 المواضيع الرائجة</button>
-<button class="sub-t" data-t="analytics" onclick="swT('analytics')">📈 الإحصائيات</button></div>
+<button class="sub-t" data-t="trending_topics" onclick="swT('trending_topics')">📊 المواضيع الرائجة</button></div>
 
 <div class="ctrls"><button class="rf-btn" onclick="rN()" id="rB">⟳ تحديث</button><span class="stats" id="aC">{{ total }} مقال</span></div>
 
@@ -74,7 +73,6 @@
 <div id="m-popular" class="tc"><div class="sl"><span class="ico">⭐</span> الأكثر قراءة</div><div class="gr" id="popularG">{{ cards_popular }}</div></div>
 <div id="m-uni" class="tc"><div class="sl"><span class="ico">🎓</span> الجامعات و المعاهد</div><div class="gr" id="uniG">{{ cards_uni }}</div></div>
 <div id="m-trending_topics" class="tc"><div class="sl"><span class="ico">📊</span> المواضيع الرائجة</div><div id="trendingTopics">{{ trending_topics_html }}</div><div class="gr" id="trendingTopicsG"></div></div>
-<div id="m-analytics" class="tc"><div class="sl"><span class="ico">📈</span> الإحصائيات</div><div id="analyticsDashboard">{{ analytics_html }}</div></div>
 </div>
 <aside class="sidebar">
 <div class="sb-widget"><div class="sb-wtitle">⭐ الأكثر قراءة</div>{{ sb_pop }}</div>
@@ -191,6 +189,7 @@ par.appendChild(btn);});uC();}
 var _modLink = '';
 var _modTitle = '';
 var _modId = '';
+var _modImg = '';
 function openModal(el){
 var link=el.getAttribute('data-link');
 var title=el.getAttribute('data-title');
@@ -199,17 +198,21 @@ var source=el.getAttribute('data-source');
 var srcColor=el.getAttribute('data-src-color');
 var txt=el.getAttribute('data-txt')||'';
 var videoId=el.getAttribute('data-video');
+var img=el.getAttribute('data-img')||'';
 _modLink = link;
 _modTitle = title;
 _modId = id||'';
+_modImg = img;
 document.getElementById('modSrc').textContent=source||'';
 document.getElementById('modSrc').style.background=srcColor||'#666';
 document.getElementById('modTitle').textContent=title||'';
 var bodyEl=document.getElementById('modBody');
 var html='';
-    if(videoId){html+='<div style="position:relative;padding-bottom:56.25%;height:0;background:#000;border-radius:4px;overflow:hidden;margin-bottom:16px"><iframe src="https://www.youtube.com/embed/'+videoId+'" style="position:absolute;inset:0;width:100%;height:100%" frameborder="0" allowfullscreen loading="lazy"></iframe></div>'}
-    if(txt){html+='<p>'+txt.replace(/\n\n/g,'</p><p>')+'</p>'}
-    if(!txt&&!videoId){html+='<p style="color:var(--text3);font-size:14px">⚠️ لم نتمكن من جلب النص التلقائي. يمكنك قراءة المقال في المصدر الأصلي أسفل الصفحة</p>'}
+    if(videoId){
+        html+='<div style="position:relative;padding-bottom:56.25%;height:0;background:#000;border-radius:4px;overflow:hidden;margin-bottom:16px"><iframe src="https://www.youtube.com/embed/'+videoId+'" style="position:absolute;inset:0;width:100%;height:100%" frameborder="0" allowfullscreen loading="lazy"></iframe></div>';
+        if(txt){var shortTxt=txt.substring(0,300).replace(/\n\n/g,'</p><p>');if(shortTxt.length<txt.length)shortTxt+='...';html+='<p style="color:var(--text3);font-size:14px;border-top:1px solid var(--border);padding-top:12px">'+shortTxt+'</p>';}
+    }else if(txt){html+='<p>'+txt.replace(/\n\n/g,'</p><p>')+'</p>'}
+    else{html+='<p style="color:var(--text3);font-size:14px">⚠️ لم نتمكن من جلب النص التلقائي. يمكنك قراءة المقال في المصدر الأصلي أسفل الصفحة</p>'}
 
 bodyEl.innerHTML=html;
 bodyEl.scrollTop=0;
@@ -225,9 +228,26 @@ bodyEl.onscroll=function(){var pct=bodyEl.scrollTop/(bodyEl.scrollHeight-bodyEl.
 document.getElementById('modProgress').style.width=Math.min(pct||0,100)+'%';};}
 
 function shareModalArticle(){
-var url=window.location.href;
-if(navigator.share){navigator.share({title:_modTitle,text:'شاهد هذا الخبر من جريدة الجزائر',url:url}).catch(function(){})}else{
-navigator.clipboard.writeText(url).then(function(){var btn=document.getElementById('modShareBtn');btn.textContent='✓';btn.style.background='#27ae60';btn.style.color='#fff';setTimeout(function(){btn.textContent='🔗';btn.style.background='';btn.style.color=''},1500)}).catch(function(){})}}
+var url=_modLink||window.location.href;
+var shareText=_modTitle+'\n'+url;
+if(navigator.share){
+var shareData={title:_modTitle,text:_modTitle,url:url};
+if(_modImg){shareData.files=[new File([_modImg],'news.jpg',{type:'image/jpeg'})];}
+navigator.share(shareData).catch(function(){});
+}else{
+navigator.clipboard.writeText(shareText).then(function(){var btn=document.getElementById('modShareBtn');btn.textContent='✓';btn.style.background='#27ae60';btn.style.color='#fff';setTimeout(function(){btn.textContent='🔗';btn.style.background='';btn.style.color=''},1500)}).catch(function(){})}}
+
+function shareArticle(btn){
+var wrapper=btn.closest('.a');
+var card=wrapper?wrapper.querySelector('.ac'):null;
+if(!card)return;
+var link=card.getAttribute('data-link')||'';
+var title=card.getAttribute('data-title')||'';
+var shareText=title+'\n'+link;
+if(navigator.share){
+navigator.share({title:title,text:title,url:link}).catch(function(){});
+}else{
+navigator.clipboard.writeText(shareText).then(function(){btn.textContent='✓';btn.style.background='#27ae60';btn.style.color='#fff';setTimeout(function(){btn.textContent='↗';btn.style.background='';btn.style.color=''},1500)}).catch(function(){})}}
 
 function closeModal(e){if(e)e.stopPropagation();
 document.getElementById('articleModal').classList.remove('open');
