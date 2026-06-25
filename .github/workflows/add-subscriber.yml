@@ -1,0 +1,43 @@
+name: Add Newsletter Subscriber
+
+on:
+  repository_dispatch:
+    types: [add-subscriber]
+
+jobs:
+  add-subscriber:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add subscriber to list
+        run: |
+          EMAIL="${{ github.event.client_payload.email }}"
+          TIMESTAMP="${{ github.event.client_payload.timestamp }}"
+          
+          # Create subscribers.json if not exists
+          if [ ! -f subscribers.json ]; then
+            echo '{"subscribers":[]}' > subscribers.json
+          fi
+          
+          # Check if already exists
+          if grep -q "$EMAIL" subscribers.json; then
+            echo "Subscriber already exists: $EMAIL"
+            exit 0
+          fi
+          
+          # Add new subscriber using jq
+          jq --arg email "$EMAIL" --arg time "$TIMESTAMP" \
+            '.subscribers += [{"email": $email, "time": $time, "active": true}]' \
+            subscribers.json > subscribers_tmp.json && mv subscribers_tmp.json subscribers.json
+          
+          echo "Added subscriber: $EMAIL"
+          cat subscribers.json
+
+      - name: Commit changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add subscribers.json
+          git diff --staged --quiet || git commit -m "newsletter: add subscriber ${{ github.event.client_payload.email }}"
+          git push

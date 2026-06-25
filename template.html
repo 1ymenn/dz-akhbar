@@ -373,7 +373,7 @@ else{addBookmark(id,title,source,link,txt,srcColor);bmkBtn.textContent='★ مح
 
 renderBookmarks();renderHistory();
 
-// Newsletter subscription
+// Newsletter subscription via GitHub repository_dispatch
 function subscribeNewsletter(){
 var email=document.getElementById('emailInput').value;
 var msg=document.getElementById('subscribeMsg');
@@ -381,25 +381,48 @@ if(!email||!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)){
 msg.textContent='يرجى إدخال بريد إلكتروني صحيح';
 msg.style.color='#D21034';msg.style.display='block';return}
 
-// Save locally for immediate feedback
-var subscribers=JSON.parse(localStorage.getItem('newsletterSubscribers')||'[]');
-if(subscribers.some(function(s){return s.email===email})){
+// Check if already subscribed locally
+var localSubs=JSON.parse(localStorage.getItem('newsletterSubscribers')||'[]');
+if(localSubs.some(function(s){return s.email===email})){
 msg.textContent='أنت مشترك بالفعل!';
 msg.style.color='#D4A017';msg.style.display='block';return}
-subscribers.push({email:email,time:Date.now(),active:true});
-localStorage.setItem('newsletterSubscribers',JSON.stringify(subscribers));
 
-// Send subscription email to admin via mailto
-var subject=encodeURIComponent('اشتراك جديد في النشرة البريدية - '+email);
-var body=encodeURIComponent('اشتراك جديد في النشرة البريدية:\\n\\nالبريد: '+email+'\\nالتاريخ: '+new Date().toLocaleString('ar-DZ'));
-window.open('mailto:1ymenchougui@gmail.com?subject='+subject+'&body='+body);
+msg.textContent='جاري الاشتراك...';
+msg.style.color='#D4A017';msg.style.display='block';
 
-msg.textContent='تم الاشتراك بنجاح! سيتم إرسال النشرة قريباً';
-msg.style.color='#006633';msg.style.display='block';
+// Trigger GitHub repository_dispatch
+var GITHUB_TOKEN='{{ GITHUB_TOKEN }}';
+var REPO='1ymenn/dz-akhbar';
+
+fetch('https://api.github.com/repos/'+REPO+'/dispatches',{
+method:'POST',
+headers:{
+'Authorization':'token '+GITHUB_TOKEN,
+'Accept':'application/vnd.github.v3+json',
+'Content-Type':'application/json'},
+body:JSON.stringify({
+event_type:'add-subscriber',
+client_payload:{
+email:email,
+timestamp:new Date().toISOString()
+}})})
+.then(function(r){
+if(r.ok||r.status===204){
+msg.textContent='تم الاشتراك بنجاح! شكراً لك';
+msg.style.color='#006633';
 document.getElementById('emailInput').value='';
-
-// Generate daily digest
+// Save locally
+localSubs.push({email:email,time:Date.now(),active:true});
+localStorage.setItem('newsletterSubscribers',JSON.stringify(localSubs));
 generateDailyDigest()}
+else{msg.textContent='حدث خطأ. حاول مرة أخرى';
+msg.style.color='#D21034'}})
+.catch(function(){
+// Fallback: save locally
+msg.textContent='تم الحفظ محلياً. سيتم إضافتك قريباً';
+msg.style.color='#D4A017';
+localSubs.push({email:email,time:Date.now(),active:true,local:true});
+localStorage.setItem('newsletterSubscribers',JSON.stringify(localSubs))})}
 
 function generateDailyDigest(){
 var articles=JSON.parse(localStorage.getItem('latestArticles')||'[]');

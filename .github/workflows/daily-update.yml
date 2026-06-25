@@ -31,6 +31,8 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Generate news
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python update_news.py --once
 
       - name: Upload latest_news.json artifact
@@ -108,4 +110,5 @@ jobs:
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           REPORT_EMAIL: ${{ secrets.REPORT_EMAIL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python send_newsletter.py
