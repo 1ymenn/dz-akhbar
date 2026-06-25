@@ -33,7 +33,14 @@ jobs:
       - name: Generate news
         run: python update_news.py --once
 
-      - name: Upload artifact
+      - name: Upload latest_news.json artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: news-data
+          path: latest_news.json
+          retention-days: 1
+
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: .
@@ -54,6 +61,11 @@ jobs:
     needs: deploy
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download news-data artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: news-data
 
       - uses: actions/setup-python@v5
         with:
@@ -77,6 +89,11 @@ jobs:
     needs: deploy
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download news-data artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: news-data
 
       - uses: actions/setup-python@v5
         with:

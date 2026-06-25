@@ -9,4 +9,4 @@ index.html
 .env
 token.json
 report_*.txt
-subscribers.json
+# subscribers.json - tracked so CI newsletter job can access it
