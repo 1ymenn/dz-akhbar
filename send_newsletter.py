@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
 Newsletter Sender - sends daily digest to subscribers via Gmail SMTP.
+Reads subscribers from subscribers.json (updated by GitHub Actions).
 Usage: python send_newsletter.py
 """
-import os, sys, json, smtplib, time, hashlib
+import os, sys, json, smtplib, time, hashlib, requests
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
@@ -19,6 +20,8 @@ except ImportError:
 GMAIL_USER = os.getenv("EMAIL_FROM", "1ymenchougui@gmail.com")
 GMAIL_PASS = os.getenv("GMAIL_APP_PASSWORD", "")
 REPORT_EMAIL = os.getenv("REPORT_EMAIL", "1ymenchougui@gmail.com")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+GITHUB_REPO = "1ymenn/dz-akhbar"
 BASE_DIR = Path(__file__).parent
 SUBSCRIBERS_FILE = BASE_DIR / "subscribers.json"
 LATEST_NEWS_FILE = BASE_DIR / "latest_news.json"
@@ -28,12 +31,71 @@ def make_article_id(title, link):
     """Generate article hash ID for deep linking."""
     return hashlib.md5((title + link).encode()).hexdigest()[:8]
 
-def load_subscribers():
-    if not SUBSCRIBERS_FILE.exists():
+def load_subscribers_from_github():
+    """Load subscribers from GitHub Issues (newsletter-subscriber label)."""
+    if not GITHUB_TOKEN:
+        print("  No GITHUB_TOKEN, skipping GitHub Issues sync")
         return []
-    with open(SUBSCRIBERS_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    return [s for s in data.get("subscribers", []) if s.get("active", True)]
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/issues"
+        headers = {
+            "Authorization": f"token {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+        params = {"labels": "newsletter,subscriber", "state": "open", "per_page": 100}
+        resp = requests.get(url, headers=headers, params=params, timeout=30)
+        if resp.status_code != 200:
+            print(f"  GitHub API error: {resp.status_code}")
+            return []
+        issues = resp.json()
+        subscribers = []
+        for issue in issues:
+            body = issue.get("body", "")
+            # Extract email from issue body
+            for line in body.split("\n"):
+                if "البريد الإلكتروني:" in line:
+                    email = line.split(":", 1)[1].strip()
+                    if email and "@" in email:
+                        subscribers.append({
+                            "email": email,
+                            "time": issue.get("created_at", ""),
+                            "active": True,
+                            "issue_number": issue.get("number")
+                        })
+        print(f"  Loaded {len(subscribers)} subscribers from GitHub Issues")
+        return subscribers
+    except Exception as e:
+        print(f"  Error loading from GitHub: {e}")
+        return []
+
+def load_subscribers():
+    """Load subscribers from local file and GitHub Issues."""
+    # Load from local file first
+    local_subscribers = []
+    if SUBSCRIBERS_FILE.exists():
+        with open(SUBSCRIBERS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        local_subscribers = [s for s in data.get("subscribers", []) if s.get("active", True)]
+    
+    # Load from GitHub Issues
+    github_subscribers = load_subscribers_from_github()
+    
+    # Merge (GitHub takes priority)
+    all_emails = set()
+    merged = []
+    for s in github_subscribers:
+        email = s.get("email", "")
+        if email and email not in all_emails:
+            all_emails.add(email)
+            merged.append(s)
+    for s in local_subscribers:
+        email = s.get("email", "")
+        if email and email not in all_emails:
+            all_emails.add(email)
+            merged.append(s)
+    
+    print(f"  Total subscribers: {len(merged)}")
+    return merged
 
 def save_subscribers(subscribers):
     data = {"subscribers": subscribers, "last_sent": datetime.now().isoformat()}
