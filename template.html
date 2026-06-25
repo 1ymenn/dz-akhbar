@@ -40,7 +40,8 @@
 <button class="sub-t" data-t="trending" onclick="swT('trending')">🔥 الشائع</button>
 <button class="sub-t" data-t="popular" onclick="swT('popular')">⭐ الأكثر قراءة</button>
 <button class="sub-t" data-t="uni" onclick="swT('uni')">🎓 الجامعات و المعاهد</button>
-<button class="sub-t" data-t="trending_topics" onclick="swT('trending_topics')">📊 المواضيع الرائجة</button></div>
+<button class="sub-t" data-t="trending_topics" onclick="swT('trending_topics')">📊 المواضيع الرائجة</button>
+<button class="sub-t" data-t="analytics" onclick="swT('analytics')">📈 الإحصائيات</button></div>
 
 <div class="ctrls"><button class="rf-btn" onclick="rN()" id="rB">⟳ تحديث</button><span class="stats" id="aC">{{ total }} مقال</span></div>
 
@@ -54,6 +55,7 @@
 <div id="m-popular" class="tc"><div class="sl"><span class="ico">⭐</span> الأكثر قراءة</div><div class="gr" id="popularG">{{ cards_popular }}</div></div>
 <div id="m-uni" class="tc"><div class="sl"><span class="ico">🎓</span> الجامعات و المعاهد</div><div class="gr" id="uniG">{{ cards_uni }}</div></div>
 <div id="m-trending_topics" class="tc"><div class="sl"><span class="ico">📊</span> المواضيع الرائجة</div><div id="trendingTopics">{{ trending_topics_html }}</div><div class="gr" id="trendingTopicsG"></div></div>
+<div id="m-analytics" class="tc"><div class="sl"><span class="ico">📈</span> الإحصائيات</div><div id="analyticsDashboard">{{ analytics_html }}</div></div>
 </div>
 <aside class="sidebar">
 <div class="sb-widget"><div class="sb-wtitle">⭐ الأكثر قراءة</div>{{ sb_pop }}</div>

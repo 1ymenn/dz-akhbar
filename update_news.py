@@ -1799,6 +1799,69 @@ def build_news_schema(articles, max_items=30):
     schema = {"@context": "https://schema.org", "@graph": items}
     return f'<script type="application/ld+json">{json.dumps(schema, ensure_ascii=False)}</script>'
 
+def build_analytics_dashboard(articles):
+    """Build analytics dashboard with statistics."""
+    # Source statistics
+    source_counts = {}
+    for a in articles:
+        source = a.get("source", "غير معروف")
+        source_counts[source] = source_counts.get(source, 0) + 1
+    sorted_sources = sorted(source_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    
+    # Category statistics
+    category_counts = {}
+    for a in articles:
+        cat = classify_category(a.get("title", ""))
+        category_counts[cat] = category_counts.get(cat, 0) + 1
+    sorted_cats = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)[:8]
+    
+    # Reading time statistics
+    total_reading_time = sum(_calc_reading_time(a.get("text", "")) for a in articles)
+    avg_reading_time = total_reading_time // max(len(articles), 1)
+    
+    # Sentiment statistics
+    sentiments = {"positive": 0, "negative": 0, "neutral": 0}
+    for a in articles:
+        sentiment, _ = _analyze_sentiment(a.get("text", ""))
+        sentiments[sentiment] = sentiments.get(sentiment, 0) + 1
+    
+    html = '<div class="analytics-grid">'
+    
+    # Total articles card
+    html += f'<div class="analytics-card"><div class="analytics-number">{len(articles)}</div><div class="analytics-label">إجمالي المقالات</div></div>'
+    
+    # Total sources card
+    html += f'<div class="analytics-card"><div class="analytics-number">{len(source_counts)}</div><div class="analytics-label">المصادر النشطة</div></div>'
+    
+    # Average reading time card
+    html += f'<div class="analytics-card"><div class="analytics-number">{avg_reading_time} دقيقة</div><div class="analytics-label">متوسط وقت القراءة</div></div>'
+    
+    # Sentiment card
+    sentiment_emoji = "😐" if sentiments["neutral"] >= sentiments["positive"] and sentiments["neutral"] >= sentiments["negative"] else ("😊" if sentiments["positive"] >= sentiments["negative"] else "😟")
+    html += f'<div class="analytics-card"><div class="analytics-number">{sentiment_emoji}</div><div class="analytics-label">المزاج العام</div></div>'
+    
+    html += '</div>'
+    
+    # Source statistics
+    html += '<div class="analytics-section"><h3 class="analytics-section-title">📊 إحصائيات المصادر</h3>'
+    html += '<div class="analytics-bar-chart">'
+    max_count = max(source_counts.values()) if source_counts else 1
+    for source, count in sorted_sources[:8]:
+        width = (count / max_count) * 100
+        html += f'<div class="analytics-bar-row"><span class="analytics-bar-label">{esc(source)}</span><div class="analytics-bar-container"><div class="analytics-bar" style="width:{width}%"></div></div><span class="analytics-bar-value">{count}</span></div>'
+    html += '</div></div>'
+    
+    # Category statistics
+    html += '<div class="analytics-section"><h3 class="analytics-section-title">📁 إحصائيات التصنيفات</h3>'
+    html += '<div class="analytics-tags">'
+    for cat, count in sorted_cats:
+        cat_names = {"سياسة": "🏛️", "رياضة": "⚽", "اقتصاد": "💰", "تكنولوجيا": "💻", "ثقافة": "📚", "صحة": "🏥", "教育": "🎓", "أمن": "🔒", "دولي": "🌍", "أخرى": "📋"}
+        emoji = cat_names.get(cat, "📋")
+        html += f'<span class="analytics-tag">{emoji} {esc(cat)} ({count})</span>'
+    html += '</div></div>'
+    
+    return html
+
 def generate_sitemap(all_articles):
     links = {}
     for a in all_articles:
@@ -1948,6 +2011,22 @@ body.light .sb-btn:hover{background:var(--red);color:#fff;border-color:var(--red
 .newsletter-input{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--filter-bg);color:var(--text);font-size:13px;font-family:inherit}
 .newsletter-btn{padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
 .newsletter-btn:hover{background:var(--accent-hover)}
+.analytics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.analytics-card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;transition:all .2s}
+.analytics-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.analytics-number{font-family:'Cairo',sans-serif;font-size:32px;font-weight:900;color:var(--accent);margin-bottom:8px}
+.analytics-label{font-size:14px;color:var(--text2);font-weight:600}
+.analytics-section{margin-bottom:24px}
+.analytics-section-title{font-family:'Cairo',sans-serif;font-size:18px;font-weight:700;color:var(--text);margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid var(--accent)}
+.analytics-bar-chart{display:flex;flex-direction:column;gap:10px}
+.analytics-bar-row{display:flex;align-items:center;gap:12px}
+.analytics-bar-label{width:120px;font-size:13px;color:var(--text2);text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.analytics-bar-container{flex:1;height:24px;background:var(--filter-bg);border-radius:12px;overflow:hidden}
+.analytics-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--gold));border-radius:12px;transition:width .5s ease}
+.analytics-bar-value{width:40px;font-size:13px;color:var(--text3);font-weight:700}
+.analytics-tags{display:flex;flex-wrap:wrap;gap:8px}
+.analytics-tag{padding:6px 12px;background:var(--filter-bg);border-radius:16px;font-size:13px;color:var(--text2);transition:all .2s}
+.analytics-tag:hover{background:var(--accent);color:#fff}
 .mod-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:2000;justify-content:center;align-items:center;padding:20px;backdrop-filter:blur(8px)}.mod-progress{position:absolute;top:0;left:0;height:2px;background:var(--accent);z-index:10;transition:width .15s;width:0%}
 .mod-overlay.open{display:flex}
 .mod-box{background:var(--card-bg);border-radius:16px;width:100%;max-width:720px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.6);border:1px solid var(--border);position:relative}
@@ -2143,6 +2222,7 @@ def main():
         tmpl = Template(f.read())
     build_timestamp = int(time.time())
     trending_topics_html = build_trending_topics(all_articles)
+    analytics_html = build_analytics_dashboard(all_articles)
     html = tmpl.render(
         css=CSS, title="جريدة الجزائر — aggregator الأخبار الجزائرية",
         meta_desc="أخبار الجزائر العاجلة من أشهر الصحف الجزائرية: الشروق، النهار، الخبر، البلاد، الحوار + أخبار الجامعات و المعاهد",
@@ -2155,6 +2235,7 @@ def main():
         build_timestamp=build_timestamp,
         news_schema=news_schema,
         trending_topics_html=trending_topics_html,
+        analytics_html=analytics_html,
     )
 
     outpath = os.path.join(base, "index.html")
