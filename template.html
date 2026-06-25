@@ -90,7 +90,7 @@
 <a onclick="sT()" id="topLink">↑ العودة إلى الأعلى</a></div>
 <div id="newsletter" style="margin:16px 0;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;max-width:400px;margin-left:auto;margin-right:auto">
 <div style="font-weight:700;margin-bottom:8px;color:var(--text)">📬 اشترك في النشرة البريدية</div>
-<div style="font-size:13px;color:var(--text3);margin-bottom:10px">احصل على أحدث الأخبار كل يوم</div>
+<div style="font-size:13px;color:var(--text3);margin-bottom:10px">احصل على أحدث الأخبار كل يوم عبر البريد</div>
 <div style="display:flex;gap:8px">
 <input type="email" id="emailInput" placeholder="بريدك الإلكتروني" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--filter-bg);color:var(--text);font-size:13px;font-family:inherit">
 <button onclick="subscribeNewsletter()" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">اشترك</button></div>
@@ -376,13 +376,21 @@ var msg=document.getElementById('subscribeMsg');
 if(!email||!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)){
 msg.textContent='يرجى إدخال بريد إلكتروني صحيح';
 msg.style.color='#D21034';msg.style.display='block';return}
+
+// Save locally for immediate feedback
 var subscribers=JSON.parse(localStorage.getItem('newsletterSubscribers')||'[]');
 if(subscribers.some(function(s){return s.email===email})){
 msg.textContent='أنت مشترك بالفعل!';
 msg.style.color='#D4A017';msg.style.display='block';return}
-subscribers.push({email:email,time:Date.now()});
+subscribers.push({email:email,time:Date.now(),active:true});
 localStorage.setItem('newsletterSubscribers',JSON.stringify(subscribers));
-msg.textContent='تم الاشتراك بنجاح! شكراً لك';
+
+// Send subscription email to admin via mailto
+var subject=encodeURIComponent('اشتراك جديد في النشرة البريدية - '+email);
+var body=encodeURIComponent('اشتراك جديد في النشرة البريدية:\\n\\nالبريد: '+email+'\\nالتاريخ: '+new Date().toLocaleString('ar-DZ'));
+window.open('mailto:1ymenchougui@gmail.com?subject='+subject+'&body='+body);
+
+msg.textContent='تم الاشتراك بنجاح! سيتم إرسال النشرة قريباً';
 msg.style.color='#006633';msg.style.display='block';
 document.getElementById('emailInput').value='';
 

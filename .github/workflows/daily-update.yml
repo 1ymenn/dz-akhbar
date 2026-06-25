@@ -71,3 +71,24 @@ jobs:
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
         run: python daily_report.py
+
+  newsletter:
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install python-dotenv
+
+      - name: Send newsletter
+        env:
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          REPORT_EMAIL: ${{ secrets.REPORT_EMAIL }}
+        run: python send_newsletter.py
