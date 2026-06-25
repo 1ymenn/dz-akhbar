@@ -39,7 +39,8 @@
 <button class="sub-t active" data-t="latest" onclick="swT('latest')">📰 أحدث الأخبار</button>
 <button class="sub-t" data-t="trending" onclick="swT('trending')">🔥 الشائع</button>
 <button class="sub-t" data-t="popular" onclick="swT('popular')">⭐ الأكثر قراءة</button>
-<button class="sub-t" data-t="uni" onclick="swT('uni')">🎓 الجامعات و المعاهد</button></div>
+<button class="sub-t" data-t="uni" onclick="swT('uni')">🎓 الجامعات و المعاهد</button>
+<button class="sub-t" data-t="trending_topics" onclick="swT('trending_topics')">📊 المواضيع الرائجة</button></div>
 
 <div class="ctrls"><button class="rf-btn" onclick="rN()" id="rB">⟳ تحديث</button><span class="stats" id="aC">{{ total }} مقال</span></div>
 
@@ -52,6 +53,7 @@
 <div id="m-trending" class="tc"><div class="sl"><span class="ico">🔥</span> الشائع</div><div class="gr" id="trendingG">{{ cards_trending }}</div></div>
 <div id="m-popular" class="tc"><div class="sl"><span class="ico">⭐</span> الأكثر قراءة</div><div class="gr" id="popularG">{{ cards_popular }}</div></div>
 <div id="m-uni" class="tc"><div class="sl"><span class="ico">🎓</span> الجامعات و المعاهد</div><div class="gr" id="uniG">{{ cards_uni }}</div></div>
+<div id="m-trending_topics" class="tc"><div class="sl"><span class="ico">📊</span> المواضيع الرائجة</div><div id="trendingTopics">{{ trending_topics_html }}</div><div class="gr" id="trendingTopicsG"></div></div>
 </div>
 <aside class="sidebar">
 <div class="sb-widget"><div class="sb-wtitle">⭐ الأكثر قراءة</div>{{ sb_pop }}</div>
@@ -221,7 +223,37 @@ if(card){clearInterval(ti);openModal(card);}
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal(e)}});
 document.addEventListener('click',function(e){
 var t=e.target.closest('.ac[data-link],.sb-link[data-link]');if(t){openModal(t);return}
-var s=e.target.closest('.sb-btn[data-share]');if(s){e.stopPropagation();shareArticle(s);return}});
+var s=e.target.closest('.sb-btn[data-share]');if(s){e.stopPropagation();shareArticle(s);return}
+var ta=e.target.closest('.trending-article');if(ta){var id=ta.getAttribute('data-id');var card=document.querySelector('.ac[data-id="'+id+'"]');if(card){openModal(card)}return}
+var ti=e.target.closest('.trending-item');if(ti){var kw=ti.querySelector('.trending-keyword').textContent.replace(/[🔥📈📊]/g,'').trim();searchTopic(kw);return}});
+
+function searchTopic(keyword){
+var cards=document.querySelectorAll('.a');
+var found=0;
+cards.forEach(function(card){
+var title=card.getAttribute('data-t')||'';
+var txt=card.querySelector('.ae')?card.querySelector('.ae').textContent:'';
+if(title.indexOf(keyword.toLowerCase())!==-1||txt.indexOf(keyword)!==-1){
+card.style.display='';found++}
+else{card.style.display='none'}});
+if(found===0){alert('لا توجد نتائج لـ: '+keyword)}
+else{swT('latest');document.getElementById('aC').textContent=found+' نتيجة لـ: '+keyword}}
+
+function showRelated(articleEl){
+var title=articleEl.getAttribute('data-title')||'';
+var source=articleEl.getAttribute('data-source')||'';
+var cards=document.querySelectorAll('.a');
+var related=[];
+cards.forEach(function(card){
+var ct=card.getAttribute('data-t')||'';
+var cs=card.getAttribute('data-s')||'';
+var score=0;
+if(cs===source.toLowerCase())score+=2;
+var words=title.split(' ');
+words.forEach(function(w){if(w.length>3&&ct.indexOf(w.toLowerCase())!==-1)score++});
+if(score>=2&&card!==articleEl)related.push({score:score,el:card})});
+related.sort(function(a,b){return b.score-a.score});
+related.slice(0,4).forEach(function(r){r.el.style.border='2px solid var(--gold)';r.el.style.boxShadow='0 0 12px rgba(212,160,23,0.3)'})}
 initLM();setTimeout(initLM,200);
 if('serviceWorker' in navigator)navigator.serviceWorker.register('/service-worker.js').catch(function(){});
 

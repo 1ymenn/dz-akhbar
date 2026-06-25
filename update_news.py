@@ -460,6 +460,13 @@ DZ_LATEST = [
     {"n":"الجزائر الجديدة","u":"https://www.eldjazaireldjadida.dz/feed/","c":"#16a085"},
     {"n":"الموعد","u":"https://elmaouid.dz/feed/","c":"#8e44ad"},
     {"n":"آخر ساعة","u":"https://www.akhbarsaa.com/feed/","c":"#27ae60"},
+    {"n":"الطنين","u":"https://www.eltinneen.com/feed/","c":"#e74c3c"},
+    {"n":"ال晚报","u":"https://www.elwatan.com/feed/","c":"#2980b9"},
+    {"n":"الفجر","u":"https://www.el-fadjr.com/feed/","c":"#16a085"},
+    {"n":"المساء","u":"https://www.elmassa.com/feed/","c":"#c0392b"},
+    {"n":"الصباح","u":"https://www.elsabah.com/feed/","c":"#27ae60"},
+    {"n":"الأحداث","u":"https://www.elhadath.com/feed/","c":"#e67e22"},
+    {"n":"المستقبل","u":"https://www.elmustaqbal.com/feed/","c":"#8e44ad"},
 ]
 DZ_TRENDING = [
     {"n":"الشروق","u":"https://www.echoroukonline.com/feed/","c":"#c0392b"},
@@ -498,6 +505,9 @@ DZ_UNI = [
     {"n":"المدرسة الوطنية Polytechnique وهران","u":"https://www.enp-oran.dz/feed/","c":"#e74c3c"},
     {"n":"المدرسة العليا للإعلام الآلي","u":"https://www.esi.dz/feed/","c":"#2980b9"},
     {"n":"مركز تطوير التكنولوجيات المتطورة","u":"https://www.cdta.dz/feed/","c":"#16a085"},
+    {"n":"جامعة الأمير عبد القادر","u":"https://www.univ-Constantine.dz/feed/","c":"#8e44ad"},
+    {"n":"جامعة فرانتز فانون","u":"https://www.univ-bouira.dz/feed/","c":"#27ae60"},
+    {"n":"جامعة خليل بوزيد","u":"https://www.univ-tlemcen.dz/feed/","c":"#117a65"},
 ]
 AR_UNI = [
     {"n":"جامعة بنها","u":"https://www.bu.edu.eg/rss.xml","c":"#27ae60"},
@@ -1592,7 +1602,11 @@ def build_articles(articles):
             vid_id = vid[1][:50]
         vid_attr = f' data-video="{vid_id}"' if vid_id else ""
         vid_icon = '<div class="vi">▶</div>' if vid else ""
-        cards += f'<div class="a{lm}" data-t="{t.lower()}" data-s="{a["source_clean"].lower()}" data-r="{r}" data-cat="{cat}"><div class="ac" data-id="{uid}" data-link="{el}" data-title="{t}" data-source="{sc}" data-src-color="{a["source_color"]}" data-txt="{txt}"{vid_attr}>{ih}{vid_icon}<div class="ab"><div class="am"><span class="as" style="background:{a["source_color"]}">{sc}</span><span class="ad">{esc(a["published"][:20])}</span></div><div class="at">{t}</div><div class="ae">{sm}</div></div></div><div class="sb-btn" data-share="1" title="مشاركة">↗</div></div>'
+        # Reading time and sentiment
+        reading_time = _calc_reading_time(a.get("text", ""))
+        sentiment, sent_score = _analyze_sentiment(a.get("text", ""))
+        sent_icon = "😐" if sentiment == "neutral" else ("😊" if sentiment == "positive" else "😟")
+        cards += f'<div class="a{lm}" data-t="{t.lower()}" data-s="{a["source_clean"].lower()}" data-r="{r}" data-cat="{cat}"><div class="ac" data-id="{uid}" data-link="{el}" data-title="{t}" data-source="{sc}" data-src-color="{a["source_color"]}" data-txt="{txt}"{vid_attr}>{ih}{vid_icon}<div class="ab"><div class="am"><span class="as" style="background:{a["source_color"]}">{sc}</span><span class="ad">📖 {reading_time} دقيقة • {sent_icon} {esc(a["published"][:20])}</span></div><div class="at">{t}</div><div class="ae">{sm}</div></div></div><div class="sb-btn" data-share="1" title="مشاركة">↗</div></div>'
     return cards
 
 def build_badges_all():
@@ -1605,6 +1619,84 @@ def build_badges_all():
                 seen.add(key)
                 parts.append(f'<span class="sb-b" style="background:{s["c"]}" data-badge="{key}">{s["n"]}</span>')
     return "".join(parts)
+
+def _calc_reading_time(text):
+    """Calculate reading time in minutes for Arabic text."""
+    if not text:
+        return 1
+    words = len(text.split())
+    # Arabic ~200 wpm
+    minutes = max(1, round(words / 200))
+    return minutes
+
+def _extract_keywords(text, title="", max_keywords=5):
+    """Extract keywords from Arabic text for related articles."""
+    if not text and not title:
+        return []
+    combined = f"{title} {text}"
+    # Common Arabic stop words
+    stop_words = {'في', 'من', 'على', 'إلى', 'عن', 'مع', 'هذا', 'هذه', 'التي', 'الذي',
+                  'أن', 'إن', 'لا', 'ما', 'كان', 'يكون', 'قد', 'لم', 'حتى', 'أو', 'بل',
+                  'و', 'ف', 'ب', 'ل', 'ال', 'ي', 'ن', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ',
+                  'ر', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ق', 'ك', 'م', 'ه',
+                  'و', 'ي', 'اء', 'ات', 'ين', 'ون', 'ان', 'تم', 'أي', 'كل', 'بها',
+                  'more', 'than', 'the', 'and', 'for', 'that', 'this', 'with', 'from',
+                  'has', 'have', 'was', 'were', 'are', 'been', 'will', 'would', 'could',
+                  'should', 'may', 'might', 'can', 'shall', 'must'}
+    words = re.findall(r'[\u0600-\u06FF]{3,}', combined)
+    freq = {}
+    for w in words:
+        if w not in stop_words and len(w) > 3:
+            freq[w] = freq.get(w, 0) + 1
+    sorted_words = sorted(freq.items(), key=lambda x: x[1], reverse=True)
+    return [w for w, _ in sorted_words[:max_keywords]]
+
+def _find_related_articles(article, all_articles, max_related=4):
+    """Find related articles based on keywords and source."""
+    title = article.get("title", "")
+    text = article.get("text", "")
+    source = article.get("source", "")
+    keywords = _extract_keywords(text, title)
+    if not keywords:
+        return []
+    scored = []
+    for a in all_articles:
+        if a.get("link") == article.get("link"):
+            continue
+        a_title = a.get("title", "")
+        a_text = a.get("text", "")
+        a_combined = f"{a_title} {a_text}"
+        score = 0
+        for kw in keywords:
+            if kw in a_combined:
+                score += 1
+        # Bonus for same source
+        if a.get("source") == source:
+            score += 2
+        if score >= 2:
+            scored.append((score, a))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [a for _, a in scored[:max_related]]
+
+def _analyze_sentiment(text):
+    """Simple Arabic sentiment analysis."""
+    if not text:
+        return "neutral", 0
+    positive_words = ['نجاح', 'فوز', 'إنجاز', 'تطور', 'تحسن', 'تقدم', 'أمل', 'سعادة',
+                      'نصر', 'إنقاذ', 'مساعدة', 'دعم', 'تعاون', 'سلام', 'حرية', 'عدل']
+    negative_words = ['فشل', 'خسارة', 'أزمة', 'مشاكل', 'عنف', 'حرب', 'قتل', 'دمار',
+                      'فقر', 'مرض', 'موت', 'كارثة', 'إخفاق', 'تراجع', 'مشاكل', 'توتر']
+    pos_count = sum(1 for w in positive_words if w in text)
+    neg_count = sum(1 for w in negative_words if w in text)
+    total = pos_count + neg_count
+    if total == 0:
+        return "neutral", 0
+    score = (pos_count - neg_count) / total
+    if score > 0.2:
+        return "positive", score
+    elif score < -0.2:
+        return "negative", score
+    return "neutral", 0
 
 def build_sidebar_list(articles, max_items=6):
     items = ""
@@ -1645,6 +1737,37 @@ def build_featured(art):
 
 def build_badges(rid):
     return "".join(f'<span class="sb-b" style="background:{s["c"]}" data-badge="{s["n"]}">{s["n"]}</span>' for s in REGIONS[rid]["latest"])
+
+def build_trending_topics(articles, max_topics=10):
+    """Build trending topics from article keywords."""
+    all_keywords = {}
+    for a in articles[:200]:
+        title = a.get("title", "")
+        text = a.get("text", "")
+        keywords = _extract_keywords(text, title, max_keywords=3)
+        for kw in keywords:
+            if kw not in all_keywords:
+                all_keywords[kw] = {"count": 0, "articles": []}
+            all_keywords[kw]["count"] += 1
+            if len(all_keywords[kw]["articles"]) < 3:
+                all_keywords[kw]["articles"].append(a)
+    sorted_topics = sorted(all_keywords.items(), key=lambda x: x[1]["count"], reverse=True)[:max_topics]
+    if not sorted_topics:
+        return "<p style='color:var(--text3);font-size:14px'>لا توجد مواضيع رائجة حالياً</p>"
+    html = '<div class="trending-grid">'
+    for keyword, data in sorted_topics:
+        count = data["count"]
+        articles_list = data["articles"]
+        heat = "🔥" if count >= 5 else ("📈" if count >= 3 else "📊")
+        html += f'<div class="trending-item" onclick="searchTopic(\'{esc(keyword)}\')">'
+        html += f'<div class="trending-keyword">{heat} {esc(keyword)}</div>'
+        html += f'<div class="trending-count">{count} مقال</div>'
+        html += '<div class="trending-articles">'
+        for a in articles_list[:2]:
+            html += f'<div class="trending-article" data-id="{hashlib.md5((a["title"]+a["link"]).encode()).hexdigest()[:8]}" data-link="{sanitize_url(a["link"])}" data-title="{esc(a["title"])}" data-source="{esc(a["source"])}" data-src-color="{a["source_color"]}" data-txt="{esc(_ensure_period(_clean_fluff(a.get("text",""),a.get("title",""))))}">{esc(a["title"][:60])}...</div>'
+        html += '</div></div>'
+    html += '</div>'
+    return html
 
 def build_news_schema(articles, max_items=30):
     """Generate NewsArticle JSON-LD schema for Google News."""
@@ -1799,6 +1922,19 @@ body.light .sb-btn:hover{background:var(--red);color:#fff;border-color:var(--red
 .ftr-sec{border-top:1px solid var(--line);padding:24px 0;margin-top:30px;text-align:center;color:var(--text3);font-size:13px}
 .ftr-sec .lk{display:flex;justify-content:center;gap:16px;margin-bottom:8px}
 .ftr-sec a{color:var(--accent);text-decoration:none;font-weight:600}
+.trending-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;padding:16px 0}
+.trending-item{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:all .2s}
+.trending-item:hover{border-color:var(--red);transform:translateY(-2px);box-shadow:0 4px 12px var(--shadow)}
+.trending-keyword{font-family:'Cairo',sans-serif;font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px}
+.trending-count{font-size:12px;color:var(--text3);margin-bottom:10px}
+.trending-articles{display:flex;flex-direction:column;gap:6px}
+.trending-article{font-size:13px;color:var(--text2);padding:6px 8px;background:var(--filter-bg);border-radius:6px;cursor:pointer;transition:all .15s;line-height:1.5}
+.trending-article:hover{background:var(--accent);color:#fff}
+.reading-time{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:4px}
+.sentiment-badge{font-size:11px;padding:2px 6px;border-radius:8px;display:inline-flex;align-items:center;gap:2px}
+.sentiment-positive{background:rgba(0,102,51,0.15);color:#006633}
+.sentiment-negative{background:rgba(210,16,52,0.15);color:#D21034}
+.sentiment-neutral{background:rgba(128,128,128,0.15);color:#808080}
 .mod-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:2000;justify-content:center;align-items:center;padding:20px;backdrop-filter:blur(8px)}.mod-progress{position:absolute;top:0;left:0;height:2px;background:var(--accent);z-index:10;transition:width .15s;width:0%}
 .mod-overlay.open{display:flex}
 .mod-box{background:var(--card-bg);border-radius:16px;width:100%;max-width:720px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.6);border:1px solid var(--border);position:relative}
@@ -1993,6 +2129,7 @@ def main():
     with open(os.path.join(base, TEMPLATE_FILE), "r", encoding="utf-8") as f:
         tmpl = Template(f.read())
     build_timestamp = int(time.time())
+    trending_topics_html = build_trending_topics(all_articles)
     html = tmpl.render(
         css=CSS, title="جريدة الجزائر — aggregator الأخبار الجزائرية",
         meta_desc="أخبار الجزائر العاجلة من أشهر الصحف الجزائرية: الشروق، النهار، الخبر، البلاد، الحوار + أخبار الجامعات و المعاهد",
@@ -2004,6 +2141,7 @@ def main():
         sb_pop=sb_pop, sb_uni=sb_uni,
         build_timestamp=build_timestamp,
         news_schema=news_schema,
+        trending_topics_html=trending_topics_html,
     )
 
     outpath = os.path.join(base, "index.html")
