@@ -3,7 +3,7 @@
 Newsletter Sender - sends daily digest to subscribers via Gmail SMTP.
 Usage: python send_newsletter.py
 """
-import os, sys, json, smtplib, time
+import os, sys, json, smtplib, time, hashlib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
@@ -22,6 +22,11 @@ REPORT_EMAIL = os.getenv("REPORT_EMAIL", "1ymenchougui@gmail.com")
 BASE_DIR = Path(__file__).parent
 SUBSCRIBERS_FILE = BASE_DIR / "subscribers.json"
 LATEST_NEWS_FILE = BASE_DIR / "latest_news.json"
+SITE_URL = "https://1ymenn.github.io/dz-akhbar"
+
+def make_article_id(title, link):
+    """Generate article hash ID for deep linking."""
+    return hashlib.md5((title + link).encode()).hexdigest()[:8]
 
 def load_subscribers():
     if not SUBSCRIBERS_FILE.exists():
@@ -82,6 +87,9 @@ body{{font-family:'Segoe UI',Tahoma,sans-serif;background:#121212;color:#E0E0E0;
         source = a.get("source", "غير معروف")
         summary = a.get("summary", "")[:150]
         link = a.get("link", "#")
+        # Generate site link with deep linking
+        article_id = make_article_id(title, link)
+        site_link = f"{SITE_URL}/#article/{article_id}"
         colors = ["#c0392b","#2980b9","#27ae60","#e67e22","#8e44ad","#16a085","#2c3e50","#e74c3c"]
         color = colors[hash(source) % len(colors)]
         html += f"""
@@ -89,7 +97,7 @@ body{{font-family:'Segoe UI',Tahoma,sans-serif;background:#121212;color:#E0E0E0;
 <span class="article-source" style="background:{color}">{source}</span>
 <div class="article-title">{title}</div>
 <div class="article-summary">{summary}...</div>
-<a href="{link}" class="article-link">← اقرأ المزيد</a>
+<a href="{site_link}" class="article-link">← اقرأ المزيد على موقعنا</a>
 </div>"""
 
     html += f"""
@@ -113,9 +121,12 @@ def build_newsletter_text(articles, date_str):
         source = a.get("source", "غير معروف")
         summary = a.get("summary", "")[:100]
         link = a.get("link", "#")
+        # Generate site link with deep linking
+        article_id = make_article_id(title, link)
+        site_link = f"{SITE_URL}/#article/{article_id}"
         text += f"{i}. [{source}] {title}\n"
         text += f"   {summary}...\n"
-        text += f"   {link}\n\n"
+        text += f"   {site_link}\n\n"
     text += "=" * 50 + "\n"
     text += f"جريدة الجزائر © {datetime.now().year}\n"
     text += "لإلغاء الاشتراك، رد على هذا البريد بـ 'إلغاء'\n"
