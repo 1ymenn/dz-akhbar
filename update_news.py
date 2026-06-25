@@ -383,6 +383,24 @@ def extract_text(link):
                 pass
     except:
         pass
+    # Specific handler for eldjoumhouria.dz (text in #textContent div)
+    if "eldjoumhouria.dz" in link:
+        m = re.search(r'id="textContent"\s*>(.*?)$', page_html, re.DOTALL|re.IGNORECASE)
+        if m:
+            chunk = m.group(1)
+            # Find end of content: look for closing tags that signal end of article
+            end_markers = ['</div>', '</article>', '<!-- Post Single', '<div class="sharethis']
+            best_end = len(chunk)
+            for marker in end_markers:
+                idx = chunk.find(marker)
+                if idx > 0 and idx < best_end:
+                    best_end = idx
+            content_html = chunk[:best_end]
+            text = re.sub(r'<[^>]+>', ' ', content_html)
+            text = html_mod.unescape(text)
+            text = re.sub(r'\s+', ' ', text).strip()
+            if len(text) > 100:
+                return text
     # Try BBC __NEXT_DATA__ (Next.js SPA)
     if "bbc.com" in link:
         bbc_text = _extract_bbc_next_data(page_html)
