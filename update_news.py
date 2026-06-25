@@ -851,9 +851,15 @@ async def async_fetch_all(regions, max_per_source):
                             title_str = a.get("title", "")
                             if _text_matches_title(txt, title_str):
                                 a["text"] = txt
-                            elif len(clean) >= 3 and len(txt) >= 300:
-                                # Substantial text from readability — trust it
-                                a["text"] = txt
+                            else:
+                                # Title doesn't match — try to find matching paragraphs
+                                title_words = re.findall(r'[\u0600-\u06FF]{3,}', title_str)
+                                matching = [p for p in clean if sum(1 for w in title_words if w in p) >= max(1, len(title_words) * 0.3)]
+                                if matching and len(matching) >= 2:
+                                    a["text"] = '\n\n'.join(matching)
+                                elif len(clean) >= 3 and len(txt) >= 500:
+                                    # Only trust if text is long enough to be a real article
+                                    a["text"] = txt
                     except:
                         pass
                 # Fallback: meta description
