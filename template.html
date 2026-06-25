@@ -67,6 +67,13 @@
 <div class="ftr-sec"><div class="lk">
 <button onclick="tgD()" class="dt-btn" id="fDT" style="font-size:10px">🌙</button>
 <a onclick="sT()" id="topLink">↑ العودة إلى الأعلى</a></div>
+<div id="newsletter" style="margin:16px 0;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;max-width:400px;margin-left:auto;margin-right:auto">
+<div style="font-weight:700;margin-bottom:8px;color:var(--text)">📬 اشترك في النشرة البريدية</div>
+<div style="font-size:13px;color:var(--text3);margin-bottom:10px">احصل على أحدث الأخبار كل يوم</div>
+<div style="display:flex;gap:8px">
+<input type="email" id="emailInput" placeholder="بريدك الإلكتروني" style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--filter-bg);color:var(--text);font-size:13px;font-family:inherit">
+<button onclick="subscribeNewsletter()" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">اشترك</button></div>
+<div id="subscribeMsg" style="font-size:12px;margin-top:8px;display:none"></div></div>
 <p id="ftrTxt">جريدة الجزائر © 2026 — جميع المقالات مملوكة لأصحابها</p>
 <div id="amMsg" style="font-size:10px;color:var(--text3);margin-top:2px">🕐 آخر تحديث: <span id="updateTime">{{ now_ar }}</span> — <span id="sinceUpdate">منذ 0 دقيقة</span></div></div>
 
@@ -340,6 +347,41 @@ removeBookmark(id);bmkBtn.textContent='☆ حفظ'}
 else{addBookmark(id,title,source,link);bmkBtn.textContent='★ محفوظ'}}};
 
 renderBookmarks();renderHistory();
+
+// Newsletter subscription
+function subscribeNewsletter(){
+var email=document.getElementById('emailInput').value;
+var msg=document.getElementById('subscribeMsg');
+if(!email||!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)){
+msg.textContent='يرجى إدخال بريد إلكتروني صحيح';
+msg.style.color='#D21034';msg.style.display='block';return}
+var subscribers=JSON.parse(localStorage.getItem('newsletterSubscribers')||'[]');
+if(subscribers.some(function(s){return s.email===email})){
+msg.textContent='أنت مشترك بالفعل!';
+msg.style.color='#D4A017';msg.style.display='block';return}
+subscribers.push({email:email,time:Date.now()});
+localStorage.setItem('newsletterSubscribers',JSON.stringify(subscribers));
+msg.textContent='تم الاشتراك بنجاح! شكراً لك';
+msg.style.color='#006633';msg.style.display='block';
+document.getElementById('emailInput').value='';
+
+// Generate daily digest
+generateDailyDigest()}
+
+function generateDailyDigest(){
+var articles=JSON.parse(localStorage.getItem('latestArticles')||'[]');
+if(articles.length===0)return;
+var digest={
+date:new Date().toISOString().split('T')[0],
+topArticles:articles.slice(0,10),
+totalArticles:articles.length,
+sources:[...new Set(articles.map(function(a){return a.source}))].length};
+localStorage.setItem('dailyDigest',JSON.stringify(digest));
+return digest}
+
+function getDailyDigest(){
+try{return JSON.parse(localStorage.getItem('dailyDigest'))}catch(e){return null}}
+
 initLM();setTimeout(initLM,200);
 if('serviceWorker' in navigator)navigator.serviceWorker.register('/service-worker.js').catch(function(){});
 

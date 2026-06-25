@@ -1942,6 +1942,12 @@ body.light .sb-btn:hover{background:var(--red);color:#fff;border-color:var(--red
 .history-item:hover{background:var(--filter-bg)}
 .history-time{color:var(--text3);font-size:11px;white-space:nowrap}
 .history-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.newsletter-form{margin:16px 0;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;max-width:400px;margin-left:auto;margin-right:auto}
+.newsletter-title{font-weight:700;margin-bottom:8px;color:var(--text)}
+.newsletter-desc{font-size:13px;color:var(--text3);margin-bottom:10px}
+.newsletter-input{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--filter-bg);color:var(--text);font-size:13px;font-family:inherit}
+.newsletter-btn{padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.newsletter-btn:hover{background:var(--accent-hover)}
 .mod-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:2000;justify-content:center;align-items:center;padding:20px;backdrop-filter:blur(8px)}.mod-progress{position:absolute;top:0;left:0;height:2px;background:var(--accent);z-index:10;transition:width .15s;width:0%}
 .mod-overlay.open{display:flex}
 .mod-box{background:var(--card-bg);border-radius:16px;width:100%;max-width:720px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.6);border:1px solid var(--border);position:relative}
