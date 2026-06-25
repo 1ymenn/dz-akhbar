@@ -58,6 +58,8 @@
 <aside class="sidebar">
 <div class="sb-widget"><div class="sb-wtitle">⭐ الأكثر قراءة</div>{{ sb_pop }}</div>
 <div class="sb-widget"><div class="sb-wtitle">❤️ مصادر مفضلة</div><div class="sb-favs" id="sbFavs"><span style="color:var(--text3);font-size:13px">اضغط على مصدر لإضافته</span></div></div>
+<div class="sb-widget"><div class="sb-wtitle">📚 المفضلة</div><div id="bookmarksList"><span style="color:var(--text3);font-size:13px">لا توجد مقالات محفوظة</span></div></div>
+<div class="sb-widget"><div class="sb-wtitle">👁️最近 قرأت</div><div id="readingHistory"><span style="color:var(--text3);font-size:13px">لم تقرأ أي مقال بعد</span></div></div>
 <div class="sb-widget sb-uni"><div class="sb-wtitle">🎓 الجامعات و المعاهد</div>{{ sb_uni }}</div>
 </aside>
 </div>
@@ -254,6 +256,90 @@ words.forEach(function(w){if(w.length>3&&ct.indexOf(w.toLowerCase())!==-1)score+
 if(score>=2&&card!==articleEl)related.push({score:score,el:card})});
 related.sort(function(a,b){return b.score-a.score});
 related.slice(0,4).forEach(function(r){r.el.style.border='2px solid var(--gold)';r.el.style.boxShadow='0 0 12px rgba(212,160,23,0.3)'})}
+
+// Community features: Bookmarks and Reading History
+function getBookmarks(){try{return JSON.parse(localStorage.getItem('bookmarks')||'[]')}catch(e){return[]}}
+function addBookmark(id,title,source,link){
+var b=getBookmarks();
+if(b.some(function(x){return x.id===id}))return;
+b.unshift({id:id,title:title,source:source,link:link,time:Date.now()});
+if(b.length>20)b=b.slice(0,20);
+localStorage.setItem('bookmarks',JSON.stringify(b));
+renderBookmarks()}
+function removeBookmark(id){
+var b=getBookmarks().filter(function(x){return x.id!==id});
+localStorage.setItem('bookmarks',JSON.stringify(b));
+renderBookmarks()}
+function renderBookmarks(){
+var b=getBookmarks();
+var el=document.getElementById('bookmarksList');
+if(!el)return;
+if(b.length===0){el.innerHTML='<span style="color:var(--text3);font-size:13px">لا توجد مقالات محفوظة</span>';return}
+var html='';
+b.slice(0,8).forEach(function(item){
+html+='<div class="sb-link" data-id="'+item.id+'" data-link="'+item.link+'" data-title="'+item.title+'" data-source="'+item.source+'" style="font-size:13px;padding:6px 8px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">';
+html+='<span style="color:var(--gold);cursor:pointer" onclick="event.stopPropagation();removeBookmark(\''+item.id+'\')">★</span>';
+html+='<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+item.title.substring(0,40)+'...</span></div>'});
+el.innerHTML=html}
+
+function getHistory(){try{return JSON.parse(localStorage.getItem('readingHistory')||'[]')}catch(e){return[]}}
+function addHistory(id,title,source,link){
+var h=getHistory();
+h=h.filter(function(x){return x.id!==id});
+h.unshift({id:id,title:title,source:source,link:link,time:Date.now()});
+if(h.length>15)h=h.slice(0,15);
+localStorage.setItem('readingHistory',JSON.stringify(h));
+renderHistory()}
+function renderHistory(){
+var h=getHistory();
+var el=document.getElementById('readingHistory');
+if(!el)return;
+if(h.length===0){el.innerHTML='<span style="color:var(--text3);font-size:13px">لم تقرأ أي مقال بعد</span>';return}
+var html='';
+h.slice(0,8).forEach(function(item){
+var mins=Math.floor((Date.now()-item.time)/60000);
+var timeAgo=mins<60?mins+' دقيقة':Math.floor(mins/60)+' ساعة';
+html+='<div class="sb-link" data-id="'+item.id+'" data-link="'+item.link+'" data-title="'+item.title+'" data-source="'+item.source+'" style="font-size:13px;padding:6px 8px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">';
+html+='<span style="color:var(--text3);font-size:11px">'+timeAgo+'</span>';
+html+='<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+item.title.substring(0,40)+'...</span></div>'});
+el.innerHTML=html}
+
+// Update openModal to add to history
+var _origOpenModal=window.openModal;
+window.openModal=function(el){
+_origOpenModal(el);
+var id=el.getAttribute('data-id');
+var title=el.getAttribute('data-title');
+var source=el.getAttribute('data-source');
+var link=el.getAttribute('data-link');
+if(id&&title)addHistory(id,title,source,link)};
+
+// Add bookmark button to modal footer
+var _origOpenModal2=window.openModal;
+window.openModal=function(el){
+_origOpenModal2(el);
+var id=el.getAttribute('data-id');
+var title=el.getAttribute('data-title');
+var source=el.getAttribute('data-source');
+var link=el.getAttribute('data-link');
+var bmkBtn=document.getElementById('modBookmarkBtn');
+if(!bmkBtn){
+bmkBtn=document.createElement('button');
+bmkBtn.id='modBookmarkBtn';
+bmkBtn.className='mod-btn mod-btn-secondary';
+bmkBtn.onclick=function(){
+if(getBookmarks().some(function(x){return x.id===id})){
+removeBookmark(id);bmkBtn.textContent='☆ حفظ'}
+else{addBookmark(id,title,source,link);bmkBtn.textContent='★ محفوظ'}};
+var footer=document.querySelector('.mod-footer');
+if(footer)footer.insertBefore(bmkBtn,footer.children[1])}
+bmkBtn.textContent=getBookmarks().some(function(x){return x.id===id})?'★ محفوظ':'☆ حفظ';
+bmkBtn.onclick=function(){
+if(getBookmarks().some(function(x){return x.id===id})){
+removeBookmark(id);bmkBtn.textContent='☆ حفظ'}
+else{addBookmark(id,title,source,link);bmkBtn.textContent='★ محفوظ'}}};
+
+renderBookmarks();renderHistory();
 initLM();setTimeout(initLM,200);
 if('serviceWorker' in navigator)navigator.serviceWorker.register('/service-worker.js').catch(function(){});
 

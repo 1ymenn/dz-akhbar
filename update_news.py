@@ -1935,6 +1935,13 @@ body.light .sb-btn:hover{background:var(--red);color:#fff;border-color:var(--red
 .sentiment-positive{background:rgba(0,102,51,0.15);color:#006633}
 .sentiment-negative{background:rgba(210,16,52,0.15);color:#D21034}
 .sentiment-neutral{background:rgba(128,128,128,0.15);color:#808080}
+.bookmark-btn{font-size:11px;padding:4px 8px;border-radius:6px;cursor:pointer;transition:all .2s}
+.bookmark-btn:hover{background:var(--gold);color:#fff}
+.bookmark-btn.active{background:var(--gold);color:#fff}
+.history-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer;transition:all .15s}
+.history-item:hover{background:var(--filter-bg)}
+.history-time{color:var(--text3);font-size:11px;white-space:nowrap}
+.history-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mod-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:2000;justify-content:center;align-items:center;padding:20px;backdrop-filter:blur(8px)}.mod-progress{position:absolute;top:0;left:0;height:2px;background:var(--accent);z-index:10;transition:width .15s;width:0%}
 .mod-overlay.open{display:flex}
 .mod-box{background:var(--card-bg);border-radius:16px;width:100%;max-width:720px;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.6);border:1px solid var(--border);position:relative}
