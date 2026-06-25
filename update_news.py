@@ -478,20 +478,27 @@ def extract_video(link):
     if not link: return None
     html, _ = fetch_page(link)
     if not html: return None
+    # Known site-wide background video IDs to skip
+    _bg_vids = {'qYPOMpzl9Tg'}  # الجمهورية site background
+    # Try to find video within article content area first
+    article_area = re.search(r'<article[^>]*>(.*?)</article>', html, re.DOTALL|re.IGNORECASE)
+    if not article_area:
+        article_area = re.search(r'class="(?:article|post|entry|content)-body[^"]*"[^>]*>(.*?)</(?:div|section)>', html, re.DOTALL|re.IGNORECASE)
+    search_html = article_area.group(1) if article_area else html
     # YouTube iframe embed
-    m = re.search(r'<iframe[^>]+src="([^"]*youtube\.com/embed/([a-zA-Z0-9_-]+)[^"]*)"', html, re.IGNORECASE)
-    if m: return "youtube", m.group(2)
+    m = re.search(r'<iframe[^>]+src="([^"]*youtube\.com/embed/([a-zA-Z0-9_-]+)[^"]*)"', search_html, re.IGNORECASE)
+    if m and m.group(2) not in _bg_vids: return "youtube", m.group(2)
     # YouTube watch URL
-    m = re.search(r'youtube\.com/watch\?v=([a-zA-Z0-9_-]+)', html, re.IGNORECASE)
-    if m: return "youtube", m.group(1)
+    m = re.search(r'youtube\.com/watch\?v=([a-zA-Z0-9_-]+)', search_html, re.IGNORECASE)
+    if m and m.group(1) not in _bg_vids: return "youtube", m.group(1)
     # Short youtu.be URL
-    m = re.search(r'youtu\.be/([a-zA-Z0-9_-]+)', html, re.IGNORECASE)
-    if m: return "youtube", m.group(1)
+    m = re.search(r'youtu\.be/([a-zA-Z0-9_-]+)', search_html, re.IGNORECASE)
+    if m and m.group(1) not in _bg_vids: return "youtube", m.group(1)
     # Dailymotion
-    m = re.search(r'dailymotion\.com/embed/video/([a-zA-Z0-9]+)', html, re.IGNORECASE)
+    m = re.search(r'dailymotion\.com/embed/video/([a-zA-Z0-9]+)', search_html, re.IGNORECASE)
     if m: return "dailymotion", m.group(1)
     # Facebook video
-    m = re.search(r'facebook\.com/plugins/video\.php\?href=([^"&]+)', html, re.IGNORECASE)
+    m = re.search(r'facebook\.com/plugins/video\.php\?href=([^"&]+)', search_html, re.IGNORECASE)
     if m: return "facebook", m.group(1)
     return None
 
@@ -1735,8 +1742,8 @@ body.ds .ai{background:#1a1a1a!important}
 .ai.no-img{display:flex;align-items:center;justify-content:center;background:var(--filter-bg)!important}
 .ai .ii{font-size:40px;opacity:0.25}
 .ab{padding:16px 18px 20px}
-.am{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px}
-.as{padding:4px 10px;border-radius:10px;font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
+.am{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap}
+.as{padding:4px 10px;border-radius:10px;font-size:11px;font-weight:700;color:#fff;white-space:nowrap;flex-shrink:0}
 .ad{font-size:12px;color:var(--text3);white-space:nowrap;direction:ltr;display:inline-block}
 .at{font-family:'Cairo',sans-serif;font-size:19px;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.4;transition:color .2s}
 .a:hover .at{color:var(--accent)}
