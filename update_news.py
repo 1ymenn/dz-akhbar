@@ -211,7 +211,6 @@ DZ_LATEST = [
     {"n":"البلاد","u":"https://www.elbilad.net/feed","c":"#27ae60"},
     {"n":"الحوار","u":"https://elhiwar.dz/feed/","c":"#e67e22"},
     {"n":"الهداف","u":"http://feeds.feedburner.com/GalerieArtciles","c":"#e74c3c"},
-    {"n":"DZfoot","u":"https://www.dzfoot.com/feed/","c":"#16a085"},
     {"n":"دزاير توب","u":"https://www.dzair-tube.dz/feed/","c":"#1abc9c"},
     {"n":"الجمهورية","u":"https://www.eldjoumhouria.dz/feed/","c":"#c0392b"},
     {"n":"الراية","u":"https://errayaonline.net/feed/","c":"#2980b9"},
@@ -261,7 +260,6 @@ DZ_UNI = [
     {"n":"جامعة باتنة","u":"https://www.univ-batna.dz/feed/","c":"#2980b9"},
     {"n":"م. التعليم العالي","u":"https://www.mesrs.dz/feed/","c":"#2c3e50"},
     {"n":"المدرسة الوطنية Polytechnique وهران","u":"https://www.enp-oran.dz/feed/","c":"#e74c3c"},
-    {"n":"المدرسة العليا للإعلام الآلي","u":"https://www.esi.dz/feed/","c":"#2980b9"},
     {"n":"مركز تطوير التكنولوجيات المتطورة","u":"https://www.cdta.dz/feed/","c":"#16a085"},
     {"n":"جامعة الأمير عبد القادر","u":"https://www.univ-Constantine.dz/feed/","c":"#8e44ad"},
     {"n":"جامعة فرانتز فانون","u":"https://www.univ-bouira.dz/feed/","c":"#27ae60"},
@@ -375,10 +373,17 @@ def extract_text(link):
         for ld in ld_matches:
             try:
                 data = json.loads(ld)
-                if isinstance(data, dict) and 'articleBody' in data:
-                    body = data['articleBody']
-                    if len(body) > 100:
-                        return body
+                if isinstance(data, dict):
+                    # Handle @graph format
+                    if '@graph' in data:
+                        for item in data['@graph']:
+                            body = item.get('articleBody', '')
+                            if body and len(body) > 100:
+                                return body
+                    elif 'articleBody' in data:
+                        body = data['articleBody']
+                        if len(body) > 100:
+                            return body
             except:
                 pass
     except:
@@ -401,6 +406,20 @@ def extract_text(link):
             text = re.sub(r'\s+', ' ', text).strip()
             if len(text) > 100:
                 return text
+    # Specific handler for aawsat.com (readability picks wrong content area)
+    if "aawsat.com" in link:
+        art_m = re.search(r'<article[^>]*>(.*?)</article>', page_html, re.DOTALL|re.IGNORECASE)
+        if art_m:
+            paras = re.findall(r'<p[^>]*>(.*?)</p>', art_m.group(1), re.DOTALL|re.IGNORECASE)
+            clean = []
+            for p in paras:
+                text = re.sub(r'<[^>]+>', ' ', p)
+                text = html_mod.unescape(text)
+                text = re.sub(r'\s+', ' ', text).strip()
+                if len(text) >= 25:
+                    clean.append(text)
+            if clean:
+                return '\n\n'.join(clean)
     # Try BBC __NEXT_DATA__ (Next.js SPA)
     if "bbc.com" in link:
         bbc_text = _extract_bbc_next_data(page_html)
@@ -832,14 +851,54 @@ async def async_fetch_all(regions, max_per_source):
                             ld = json.loads(block)
                             if isinstance(ld, list):
                                 ld = ld[0] if ld else {}
-                            body = ld.get("articleBody", "")
-                            if body and len(body) > 50:
-                                a["text"] = body
+                            # Handle @graph format
+                            if "@graph" in ld:
+                                for item in ld["@graph"]:
+                                    body = item.get("articleBody", "")
+                                    if body and len(body) > 50:
+                                        a["text"] = body
+                                        break
+                            else:
+                                body = ld.get("articleBody", "")
+                                if body and len(body) > 50:
+                                    a["text"] = body
+                            if a.get("text"):
                                 break
                         except:
                             pass
                 except:
                     pass
+                # Specific handler for aawsat.com (readability picks wrong content)
+                if not a.get("text") and "aawsat.com" in link:
+                    art_m = re.search(r'<article[^>]*>(.*?)</article>', html, re.DOTALL|re.IGNORECASE)
+                    if art_m:
+                        paras = re.findall(r'<p[^>]*>(.*?)</p>', art_m.group(1), re.DOTALL|re.IGNORECASE)
+                        clean = []
+                        for p in paras:
+                            text = re.sub(r'<[^>]+>', ' ', p)
+                            text = html_mod.unescape(text)
+                            text = re.sub(r'\s+', ' ', text).strip()
+                            if len(text) >= 25:
+                                clean.append(text)
+                        if clean:
+                            a["text"] = '\n\n'.join(clean)
+                # Specific handler for eldjoumhouria.dz (text in #textContent div)
+                if not a.get("text") and "eldjoumhouria.dz" in link:
+                    m = re.search(r'id="textContent"\s*>(.*?)$', html, re.DOTALL|re.IGNORECASE)
+                    if m:
+                        chunk = m.group(1)
+                        end_markers = ['</div>', '</article>', '<!-- Post Single', '<div class="sharethis']
+                        best_end = len(chunk)
+                        for marker in end_markers:
+                            idx = chunk.find(marker)
+                            if idx > 0 and idx < best_end:
+                                best_end = idx
+                        content_html = chunk[:best_end]
+                        text = re.sub(r'<[^>]+>', ' ', content_html)
+                        text = html_mod.unescape(text)
+                        text = re.sub(r'\s+', ' ', text).strip()
+                        if len(text) > 100:
+                            a["text"] = text
                 # Fallback: BBC __NEXT_DATA__ (Next.js SPA)
                 if not a.get("text") and "bbc.com" in link:
                     bbc_text = _extract_bbc_next_data(html)
