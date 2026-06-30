@@ -33,8 +33,8 @@ load_env()
 # ═══════════════════════════════════════════════════════════════
 GOATCOUNTER_CODE = os.environ.get("GOATCOUNTER_CODE", "")
 GOATCOUNTER_TOKEN = os.environ.get("GOATCOUNTER_TOKEN", "")
-EMAIL_TO = os.environ.get("REPORT_EMAIL", "1ymenchougui@gmail.com")
-EMAIL_FROM = os.environ.get("EMAIL_FROM", "1ymenchougui@gmail.com")
+EMAIL_TO = os.environ.get("REPORT_EMAIL", "")
+EMAIL_FROM = os.environ.get("EMAIL_FROM", "")
 GMAIL_APP_PASSWORD = os.environ.get("GMAIL_APP_PASSWORD", "")
 
 

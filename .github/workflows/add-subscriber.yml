@@ -15,13 +15,19 @@ jobs:
           EMAIL="${{ github.event.client_payload.email }}"
           TIMESTAMP="${{ github.event.client_payload.timestamp }}"
           
+          # Validate email format
+          if ! echo "$EMAIL" | grep -qE '^[^\s@]+@[^\s@]+\.[^\s@]+$'; then
+            echo "Invalid email format: $EMAIL"
+            exit 1
+          fi
+          
           # Create subscribers.json if not exists
           if [ ! -f subscribers.json ]; then
             echo '{"subscribers":[]}' > subscribers.json
           fi
           
           # Check if already exists
-          if grep -q "$EMAIL" subscribers.json; then
+          if jq -e --arg email "$EMAIL" '.subscribers[] | select(.email == $email)' subscribers.json > /dev/null 2>&1; then
             echo "Subscriber already exists: $EMAIL"
             exit 0
           fi
@@ -39,5 +45,5 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add subscribers.json
-          git diff --staged --quiet || git commit -m "newsletter: add subscriber ${{ github.event.client_payload.email }}"
+          git diff --staged --quiet || git commit -m "newsletter: add new subscriber"
           git push

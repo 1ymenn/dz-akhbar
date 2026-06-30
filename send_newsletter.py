@@ -17,9 +17,9 @@ try:
 except ImportError:
     pass
 
-GMAIL_USER = os.getenv("EMAIL_FROM", "1ymenchougui@gmail.com")
+GMAIL_USER = os.getenv("EMAIL_FROM", "")
 GMAIL_PASS = os.getenv("GMAIL_APP_PASSWORD", "")
-REPORT_EMAIL = os.getenv("REPORT_EMAIL", "1ymenchougui@gmail.com")
+REPORT_EMAIL = os.getenv("REPORT_EMAIL", "")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 GITHUB_REPO = "1ymenn/dz-akhbar"
 BASE_DIR = Path(__file__).parent

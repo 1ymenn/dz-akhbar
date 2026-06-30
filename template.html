@@ -4,6 +4,8 @@
 <meta name="description" content="{{ meta_desc }}">
 <meta http-equiv="Cache-Control" content="public, max-age=300, s-maxage=600">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
+<meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' gc.zgo.at static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' gc.zgo.at api.github.com wttr.in; frame-src youtube.com www.youtube.com">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 <meta name="googlebot" content="index, follow">
 <link rel="canonical" href="https://1ymenn.github.io/dz-akhbar/">
@@ -164,11 +166,12 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',func
 
 function rN(){window.location.href=window.location.pathname+'?refresh='+Date.now()}
 function sT(){window.scrollTo({top:0,behavior:'smooth'})}
+function escH(s){if(!s)return'';return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 
 (function uc(){var d=new Date();document.getElementById('liveClock').textContent=d.toLocaleTimeString('ar-DZ',{hour:'2-digit',minute:'2-digit',second:'2-digit'});setTimeout(uc,1000)})();
 
 (function(){var wd=document.getElementById('weather');
-fetch('https://wttr.in/Algiers?format=j1&lang=ar').then(function(r){return r.json()}).then(function(d){var c=d.current_condition[0];if(c){var t=c.temp_C||'--';var de=c.lang_ar?c.lang_ar[0].value:(c.weatherDesc?c.weatherDesc[0].value:'');wd.innerHTML='🌤️ '+t+'°C '+de}}).catch(function(){})})();
+fetch('https://wttr.in/Algiers?format=j1&lang=ar').then(function(r){return r.json()}).then(function(d){var c=d.current_condition[0];if(c){var t=c.temp_C||'--';var de=c.lang_ar?c.lang_ar[0].value:(c.weatherDesc?c.weatherDesc[0].value:'');wd.textContent='🌤️ '+t+'°C '+de}}).catch(function(){})})();
 
 var _tickerIdx=0;
 (function ti(){setInterval(function(){if(tk.length){_tickerIdx=(_tickerIdx+1)%tk.length;var el=document.getElementById('tickerText');if(el)el.textContent=tk[_tickerIdx].title;}},3500)})();
@@ -176,7 +179,7 @@ var _tickerIdx=0;
 document.getElementById('tickerText').addEventListener('click',function(){
 if(tk.length&&tk[_tickerIdx]&&tk[_tickerIdx].id){var card=document.querySelector('.ac[data-id="'+tk[_tickerIdx].id+'"],.sb-link[data-id="'+tk[_tickerIdx].id+'"]');if(card)openModal(card);}});
 
-(function rf(){var fi=0;setInterval(function(){if(!ftData||ftData.length<2)return;fi=(fi+1)%ftData.length;var d=ftData[fi];var el=document.getElementById('ftRotate');if(!el)return;var img=d.img?'<div class="ftr-img"><img src="'+d.img+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div class="ftr-overlay"></div></div>':'<div class="ftr-img ftr-no-img"><div class="ii">📰</div></div>';el.style.opacity='0';setTimeout(function(){el.innerHTML='<div class="ftr-art"><div class="ftr-inner">'+img+'<div class="ftr-body"><span class="ftr-src" style="background:'+d.sc+'">'+d.source+'</span><div class="ftr-title">'+d.title+'</div><div class="ftr-summary">'+d.summary+'</div><div class="ftr-meta"><span>'+d.pub+'</span></div></div></div></div>';el.style.opacity='1'},400)},6000)})();
+(function rf(){var fi=0;setInterval(function(){if(!ftData||ftData.length<2)return;fi=(fi+1)%ftData.length;var d=ftData[fi];var el=document.getElementById('ftRotate');if(!el)return;var img=d.img?'<div class="ftr-img"><img src="'+escH(d.img)+'" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover"><div class="ftr-overlay"></div></div>':'<div class="ftr-img ftr-no-img"><div class="ii">📰</div></div>';el.style.opacity='0';setTimeout(function(){el.innerHTML='<div class="ftr-art"><div class="ftr-inner">'+img+'<div class="ftr-body"><span class="ftr-src" style="background:'+escH(d.sc)+'">'+escH(d.source)+'</span><div class="ftr-title">'+escH(d.title)+'</div><div class="ftr-summary">'+escH(d.summary)+'</div><div class="ftr-meta"><span>'+escH(d.pub)+'</span></div></div></div></div>';el.style.opacity='1'},400)},6000)})();
 
 function initLM(){document.querySelectorAll('.lm-btn').forEach(function(b){b.remove()});
 document.querySelectorAll('.gr').forEach(function(grid){var items=grid.querySelectorAll('.a');if(items.length<=40)return;
@@ -209,9 +212,9 @@ document.getElementById('modTitle').textContent=title||'';
 var bodyEl=document.getElementById('modBody');
 var html='';
     if(videoId){
-        html+='<div style="position:relative;padding-bottom:56.25%;height:0;background:#000;border-radius:4px;overflow:hidden;margin-bottom:16px"><iframe src="https://www.youtube.com/embed/'+videoId+'" style="position:absolute;inset:0;width:100%;height:100%" frameborder="0" allowfullscreen loading="lazy"></iframe></div>';
-        if(txt){var shortTxt=txt.substring(0,300).replace(/\n\n/g,'</p><p>');if(shortTxt.length<txt.length)shortTxt+='...';html+='<p style="color:var(--text3);font-size:14px;border-top:1px solid var(--border);padding-top:12px">'+shortTxt+'</p>';}
-    }else if(txt){html+='<p>'+txt.replace(/\n\n/g,'</p><p>')+'</p>'}
+        html+='<div style="position:relative;padding-bottom:56.25%;height:0;background:#000;border-radius:4px;overflow:hidden;margin-bottom:16px"><iframe src="https://www.youtube.com/embed/'+escH(videoId)+'" style="position:absolute;inset:0;width:100%;height:100%" frameborder="0" allowfullscreen loading="lazy"></iframe></div>';
+        if(txt){var shortTxt=escH(txt.substring(0,300)).replace(/\n\n/g,'</p><p>');if(shortTxt.length<txt.length)shortTxt+='...';html+='<p style="color:var(--text3);font-size:14px;border-top:1px solid var(--border);padding-top:12px">'+shortTxt+'</p>';}
+    }else if(txt){html+='<p>'+escH(txt).replace(/\n\n/g,'</p><p>')+'</p>'}
     else{html+='<p style="color:var(--text3);font-size:14px">⚠️ لم نتمكن من جلب النص التلقائي. يمكنك قراءة المقال في المصدر الأصلي أسفل الصفحة</p>'}
 
 bodyEl.innerHTML=html;
@@ -338,9 +341,9 @@ if(!el)return;
 if(b.length===0){el.innerHTML='<span style="color:var(--text3);font-size:13px">لا توجد مقالات محفوظة</span>';return}
 var html='';
 b.slice(0,8).forEach(function(item){
-html+='<div class="sb-link" data-id="'+item.id+'" data-link="'+item.link+'" data-title="'+item.title+'" data-source="'+item.source+'" data-txt="'+(item.txt||'').replace(/"/g,'&quot;')+'" data-src-color="'+(item.srcColor||'#666')+'" style="font-size:13px;padding:6px 8px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">';
-html+='<span style="color:var(--gold);cursor:pointer" onclick="event.stopPropagation();removeBookmark(\''+item.id+'\')">★</span>';
-html+='<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+item.title.substring(0,40)+'...</span></div>'});
+html+='<div class="sb-link" data-id="'+escH(item.id)+'" data-link="'+escH(item.link)+'" data-title="'+escH(item.title)+'" data-source="'+escH(item.source)+'" data-txt="'+escH(item.txt||'')+'" data-src-color="'+escH(item.srcColor||'#666')+'" style="font-size:13px;padding:6px 8px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">';
+html+='<span style="color:var(--gold);cursor:pointer" onclick="event.stopPropagation();removeBookmark(\''+escH(item.id)+'\')">★</span>';
+html+='<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escH(item.title.substring(0,40))+'...</span></div>'});
 el.innerHTML=html}
 
 function getHistory(){try{return JSON.parse(localStorage.getItem('readingHistory')||'[]')}catch(e){return[]}}
@@ -360,9 +363,9 @@ var html='';
 h.slice(0,8).forEach(function(item){
 var mins=Math.floor((Date.now()-item.time)/60000);
 var timeAgo=mins<60?mins+' دقيقة':Math.floor(mins/60)+' ساعة';
-html+='<div class="sb-link" data-id="'+item.id+'" data-link="'+item.link+'" data-title="'+item.title+'" data-source="'+item.source+'" data-txt="'+(item.txt||'').replace(/"/g,'&quot;')+'" data-src-color="'+(item.srcColor||'#666')+'" style="font-size:13px;padding:6px 8px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">';
+html+='<div class="sb-link" data-id="'+escH(item.id)+'" data-link="'+escH(item.link)+'" data-title="'+escH(item.title)+'" data-source="'+escH(item.source)+'" data-txt="'+escH(item.txt||'')+'" data-src-color="'+escH(item.srcColor||'#666')+'" style="font-size:13px;padding:6px 8px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)">';
 html+='<span style="color:var(--text3);font-size:11px">'+timeAgo+'</span>';
-html+='<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+item.title.substring(0,40)+'...</span></div>'});
+html+='<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escH(item.title.substring(0,40))+'...</span></div>'});
 el.innerHTML=html}
 
 // Update openModal to add to history
@@ -406,7 +409,7 @@ else{addBookmark(id,title,source,link,txt,srcColor);bmkBtn.textContent='★ مح
 
 renderBookmarks();renderHistory();
 
-// Newsletter subscription via GitHub repository_dispatch
+// Newsletter subscription (local storage - CI processes periodically)
 function subscribeNewsletter(){
 var email=document.getElementById('emailInput').value;
 var msg=document.getElementById('subscribeMsg');
@@ -414,7 +417,6 @@ if(!email||!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)){
 msg.textContent='يرجى إدخال بريد إلكتروني صحيح';
 msg.style.color='#D21034';msg.style.display='block';return}
 
-// Check if already subscribed locally
 var localSubs=JSON.parse(localStorage.getItem('newsletterSubscribers')||'[]');
 if(localSubs.some(function(s){return s.email===email})){
 msg.textContent='أنت مشترك بالفعل!';
@@ -423,39 +425,12 @@ msg.style.color='#D4A017';msg.style.display='block';return}
 msg.textContent='جاري الاشتراك...';
 msg.style.color='#D4A017';msg.style.display='block';
 
-// Trigger GitHub repository_dispatch
-var GITHUB_TOKEN='{{ GITHUB_TOKEN }}';
-var REPO='1ymenn/dz-akhbar';
-
-fetch('https://api.github.com/repos/'+REPO+'/dispatches',{
-method:'POST',
-headers:{
-'Authorization':'token '+GITHUB_TOKEN,
-'Accept':'application/vnd.github.v3+json',
-'Content-Type':'application/json'},
-body:JSON.stringify({
-event_type:'add-subscriber',
-client_payload:{
-email:email,
-timestamp:new Date().toISOString()
-}})})
-.then(function(r){
-if(r.ok||r.status===204){
+localSubs.push({email:email,time:Date.now(),active:true});
+localStorage.setItem('newsletterSubscribers',JSON.stringify(localSubs));
 msg.textContent='تم الاشتراك بنجاح! شكراً لك';
 msg.style.color='#006633';
 document.getElementById('emailInput').value='';
-// Save locally
-localSubs.push({email:email,time:Date.now(),active:true});
-localStorage.setItem('newsletterSubscribers',JSON.stringify(localSubs));
 generateDailyDigest()}
-else{msg.textContent='حدث خطأ. حاول مرة أخرى';
-msg.style.color='#D21034'}})
-.catch(function(){
-// Fallback: save locally
-msg.textContent='تم الحفظ محلياً. سيتم إضافتك قريباً';
-msg.style.color='#D4A017';
-localSubs.push({email:email,time:Date.now(),active:true,local:true});
-localStorage.setItem('newsletterSubscribers',JSON.stringify(localSubs))})}
 
 function generateDailyDigest(){
 var articles=JSON.parse(localStorage.getItem('latestArticles')||'[]');
