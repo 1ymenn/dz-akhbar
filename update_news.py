@@ -802,9 +802,18 @@ async def async_fetch_og_images(session, articles, sem):
 
 def _extract_og_from_html(html, link):
     """Extract og:image from raw HTML (helper for async path)."""
-    _reject = re.compile(r'logo|icon|avatar|banner|spacer|pixel|nothumb|nothumbs_[dg]|no[._-]?image|placeholder|/default\.|DefaultImage|970x90', re.IGNORECASE)
+    _reject = re.compile(r'logo|icon|avatar|banner|spacer|pixel|nothumb|nothumbs_[dg]|no[._-]?image|placeholder|/default\.|DefaultImage|970x90|youtube', re.IGNORECASE)
     def strip_wp_thumb(url):
         return re.sub(r'-\d+x\d+\.(jpg|jpeg|png|gif|webp)$', r'.\1', url, flags=re.IGNORECASE)
+    # Site-specific: eldjoumhouria.dz - find main article image from /media/articles/ path
+    if "eldjoumhouria.dz" in link:
+        m = re.search(r'<img[^>]+src="([^"]*/media/articles/[^"]+\.(?:jpg|jpeg|png|gif|webp))"', html, re.IGNORECASE)
+        if m:
+            img = m.group(1)
+            if not re.match(r'https?://', img):
+                from urllib.parse import urljoin
+                img = urljoin(link, img)
+            return clean_url(img)
     for pat in [r'<meta\s+property="og:image"\s+content="([^"]+)"',
                 r'<meta\s+content="([^"]+)"\s+property="og:image"',
                 r'<meta\s+name="twitter:image"\s+content="([^"]+)"']:
@@ -1110,13 +1119,21 @@ async def async_fetch_all(regions, max_per_source):
                         desc = html_mod.unescape(meta_desc.group(1)).strip()
                         if len(desc) > 50:
                             a["text"] = desc
-                # Extract video
-                m = re.search(r'youtube\.com/embed/([a-zA-Z0-9_-]+)', html, re.IGNORECASE)
+                # Extract video (with site-specific handling)
+                _bg_vids = {'qYPOMpzl9Tg'}  # Background video IDs to skip
+                search_html = html
+                if "eldjoumhouria.dz" in link:
+                    tc = re.search(r'id="textContent"\s*>(.*?)(?:</div>|\Z)', html, re.DOTALL|re.IGNORECASE)
+                    if tc:
+                        search_html = tc.group(1)
+                    else:
+                        search_html = ""
+                m = re.search(r'youtube\.com/embed/([a-zA-Z0-9_-]+)', search_html, re.IGNORECASE)
                 if not m:
-                    m = re.search(r'youtube\.com/watch\?v=([a-zA-Z0-9_-]+)', html, re.IGNORECASE)
+                    m = re.search(r'youtube\.com/watch\?v=([a-zA-Z0-9_-]+)', search_html, re.IGNORECASE)
                 if not m:
-                    m = re.search(r'youtu\.be/([a-zA-Z0-9_-]+)', html, re.IGNORECASE)
-                if m and re.match(r'^[a-zA-Z0-9_-]+$', m.group(1)):
+                    m = re.search(r'youtu\.be/([a-zA-Z0-9_-]+)', search_html, re.IGNORECASE)
+                if m and re.match(r'^[a-zA-Z0-9_-]+$', m.group(1)) and m.group(1) not in _bg_vids:
                     a["video"] = ("youtube", m.group(1))
                 # Extract image if missing or is static/breaking placeholder or broken URL
                 cur_img = a.get("image", "")
