@@ -577,11 +577,19 @@ def extract_video(link):
     if not html: return None
     # Known site-wide background video IDs to skip
     _bg_vids = {'qYPOMpzl9Tg'}  # الجمهورية site background
-    # Try to find video within article content area first
-    article_area = re.search(r'<article[^>]*>(.*?)</article>', html, re.DOTALL|re.IGNORECASE)
-    if not article_area:
-        article_area = re.search(r'class="(?:article|post|entry|content)-body[^"]*"[^>]*>(.*?)</(?:div|section)>', html, re.DOTALL|re.IGNORECASE)
-    search_html = article_area.group(1) if article_area else html
+    # Site-specific: eldjoumhouria.dz - search only in #textContent
+    if "eldjoumhouria.dz" in link:
+        tc = re.search(r'id="textContent"\s*>(.*?)(?:</div>|\Z)', html, re.DOTALL|re.IGNORECASE)
+        if tc:
+            search_html = tc.group(1)
+        else:
+            return None
+    else:
+        # Try to find video within article content area first
+        article_area = re.search(r'<article[^>]*>(.*?)</article>', html, re.DOTALL|re.IGNORECASE)
+        if not article_area:
+            article_area = re.search(r'class="(?:article|post|entry|content)-body[^"]*"[^>]*>(.*?)</(?:div|section)>', html, re.DOTALL|re.IGNORECASE)
+        search_html = article_area.group(1) if article_area else html
     # YouTube iframe embed
     m = re.search(r'<iframe[^>]+src="([^"]*youtube\.com/embed/([a-zA-Z0-9_-]+)[^"]*)"', search_html, re.IGNORECASE)
     if m and m.group(2) not in _bg_vids: return "youtube", m.group(2)
@@ -605,9 +613,18 @@ def fetch_og_image(link):
     html, _ = fetch_page(link)
     if not html:
         return None
-    _reject = re.compile(r'logo|icon|avatar|banner|spacer|pixel|nothumb|nothumbs_[dg]|no[._-]?image|placeholder|/default\.|DefaultImage|970x90', re.IGNORECASE)
+    _reject = re.compile(r'logo|icon|avatar|banner|spacer|pixel|nothumb|nothumbs_[dg]|no[._-]?image|placeholder|/default\.|DefaultImage|970x90|youtube', re.IGNORECASE)
     def strip_wp_thumb(url):
         return re.sub(r'-\d+x\d+\.(jpg|jpeg|png|gif|webp)$', r'.\1', url, flags=re.IGNORECASE)
+    # Site-specific: eldjoumhouria.dz - find main article image from /media/articles/ path
+    if "eldjoumhouria.dz" in link:
+        m = re.search(r'<img[^>]+src="([^"]*/media/articles/[^"]+\.(?:jpg|jpeg|png|gif|webp))"', html, re.IGNORECASE)
+        if m:
+            img = m.group(1)
+            if not re.match(r'https?://', img):
+                from urllib.parse import urljoin
+                img = urljoin(link, img)
+            return clean_url(img)
     for pat in [r'<meta\s+property="og:image"\s+content="([^"]+)"',
                 r'<meta\s+content="([^"]+)"\s+property="og:image"',
                 r'<meta\s+name="twitter:image"\s+content="([^"]+)"']:
