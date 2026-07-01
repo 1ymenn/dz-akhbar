@@ -199,7 +199,7 @@ var title=el.getAttribute('data-title');
 var id=el.getAttribute('data-id');
 var source=el.getAttribute('data-source');
 var srcColor=el.getAttribute('data-src-color');
-var txt=el.getAttribute('data-txt')||'';
+var txt=(el.getAttribute('data-txt')||'').replace(/&#10;/g,'\n').replace(/&#13;/g,'');
 var videoId=el.getAttribute('data-video');
 var img=el.getAttribute('data-img')||'';
 _modLink = link;
@@ -376,7 +376,7 @@ var id=el.getAttribute('data-id');
 var title=el.getAttribute('data-title');
 var source=el.getAttribute('data-source');
 var link=el.getAttribute('data-link');
-var txt=el.getAttribute('data-txt')||'';
+var txt=(el.getAttribute('data-txt')||'').replace(/&#10;/g,'\n').replace(/&#13;/g,'');
 var srcColor=el.getAttribute('data-src-color')||'#666';
 if(id&&title)addHistory(id,title,source,link,txt,srcColor)};
 
@@ -388,7 +388,7 @@ var id=el.getAttribute('data-id');
 var title=el.getAttribute('data-title');
 var source=el.getAttribute('data-source');
 var link=el.getAttribute('data-link');
-var txt=el.getAttribute('data-txt')||'';
+var txt=(el.getAttribute('data-txt')||'').replace(/&#10;/g,'\n').replace(/&#13;/g,'');
 var srcColor=el.getAttribute('data-src-color')||'#666';
 var bmkBtn=document.getElementById('modBookmarkBtn');
 if(!bmkBtn){

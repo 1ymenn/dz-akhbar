@@ -406,6 +406,66 @@ def extract_text(link):
             text = re.sub(r'\s+', ' ', text).strip()
             if len(text) > 100:
                 return text
+    # Specific handler for alaraby.co.uk (<main> has full article, field--name-body only lead)
+    if "alaraby.co.uk" in link:
+        # Skip actual live blogs: check title or URL for live blog indicators (not CSS class names)
+        is_live = False
+        title_m = re.search(r'<title[^>]*>(.*?)</title>', page_html, re.DOTALL|re.IGNORECASE)
+        if title_m and re.search(r'\blive\b.*(blog|updates|coverage)|مباشر|التحديثات الحية', title_m.group(1), re.IGNORECASE):
+            is_live = True
+        if re.search(r'/liveblog/|/live-blog/', link, re.IGNORECASE):
+            is_live = True
+        if is_live:
+            meta_desc = re.search(r'<meta[^>]+(?:name|property)=["\'](?:description|og:description)["\'][^>]+content=["\']([^"\']+)["\']', page_html, re.IGNORECASE)
+            if meta_desc:
+                desc = html_mod.unescape(meta_desc.group(1)).strip()
+                if len(desc) > 50:
+                    return desc
+            return ""
+        # Extract from <main> first (full article content)
+        main_m = re.search(r'<main[^>]*>(.*?)</main>', page_html, re.DOTALL|re.IGNORECASE)
+        if main_m:
+            paras = re.findall(r'<p[^>]*>(.*?)</p>', main_m.group(1), re.DOTALL|re.IGNORECASE)
+            clean = []
+            seen = set()
+            for p in paras:
+                text = re.sub(r'<[^>]+>', ' ', p)
+                text = html_mod.unescape(text)
+                text = re.sub(r'\s+', ' ', text).strip()
+                if len(text) < 25:
+                    continue
+                # Skip photo captions (Getty, AP, AFP, etc.)
+                if re.search(r'Getty|AP|AFP|فرانس برس|رويترز|كوستフرا|كوني فرانس|tass', text, re.IGNORECASE):
+                    continue
+                # Skip font/language indicator lines
+                if re.search(r'\+?\s*الخط\s*-\s*(Arabic|English|French)', text):
+                    continue
+                # Stop at related articles section (short paragraph after long ones)
+                if clean and len(text) < 50 and len(clean[-1]) > 100:
+                    break
+                # Dedup
+                short = text[:60]
+                if short in seen:
+                    continue
+                seen.add(short)
+                clean.append(text)
+            if clean and sum(len(x) for x in clean) > 200:
+                return '\n\n'.join(clean)
+        # Fallback: field--name-body (only has lead paragraphs)
+        body_m = re.search(r'field--name-body[^>]*>(.*?)</div>\s*</div>\s*</div>', page_html, re.DOTALL|re.IGNORECASE)
+        if not body_m:
+            body_m = re.search(r'field--name-body[^>]*>(.*?)</div>', page_html, re.DOTALL|re.IGNORECASE)
+        if body_m:
+            paras = re.findall(r'<p[^>]*>(.*?)</p>', body_m.group(1), re.DOTALL|re.IGNORECASE)
+            clean = []
+            for p in paras:
+                text = re.sub(r'<[^>]+>', ' ', p)
+                text = html_mod.unescape(text)
+                text = re.sub(r'\s+', ' ', text).strip()
+                if len(text) >= 25:
+                    clean.append(text)
+            if clean:
+                return '\n\n'.join(clean)
     # Specific handler for aawsat.com (readability picks wrong content area)
     if "aawsat.com" in link:
         art_m = re.search(r'<article[^>]*>(.*?)</article>', page_html, re.DOTALL|re.IGNORECASE)
@@ -899,6 +959,63 @@ async def async_fetch_all(regions, max_per_source):
                         text = re.sub(r'\s+', ' ', text).strip()
                         if len(text) > 100:
                             a["text"] = text
+                # Specific handler for alaraby.co.uk (<main> has full article, field--name-body only lead)
+                if not a.get("text") and "alaraby.co.uk" in link:
+                    # Skip actual live blogs: check title or URL for live blog indicators
+                    is_live = False
+                    title_m = re.search(r'<title[^>]*>(.*?)</title>', html, re.DOTALL|re.IGNORECASE)
+                    if title_m and re.search(r'\blive\b.*(blog|updates|coverage)|مباشر|التحديثات الحية', title_m.group(1), re.IGNORECASE):
+                        is_live = True
+                    if re.search(r'/liveblog/|/live-blog/', link, re.IGNORECASE):
+                        is_live = True
+                    if is_live:
+                        meta_desc = re.search(r'<meta[^>]+(?:name|property)=["\'](?:description|og:description)["\'][^>]+content=["\']([^"\']+)["\']', html, re.IGNORECASE)
+                        if meta_desc:
+                            desc = html_mod.unescape(meta_desc.group(1)).strip()
+                            if len(desc) > 50:
+                                a["text"] = desc
+                    # Extract from <main> first (full article content)
+                    if not a.get("text"):
+                        main_m = re.search(r'<main[^>]*>(.*?)</main>', html, re.DOTALL|re.IGNORECASE)
+                        if main_m:
+                            paras = re.findall(r'<p[^>]*>(.*?)</p>', main_m.group(1), re.DOTALL|re.IGNORECASE)
+                            clean = []
+                            seen = set()
+                            for p in paras:
+                                text = re.sub(r'<[^>]+>', ' ', p)
+                                text = html_mod.unescape(text)
+                                text = re.sub(r'\s+', ' ', text).strip()
+                                if len(text) < 25:
+                                    continue
+                                if re.search(r'Getty|AP|AFP|فرانس برس|رويترز|كوستفرا|كوني فرانس|tass', text, re.IGNORECASE):
+                                    continue
+                                if re.search(r'\+?\s*الخط\s*-\s*(Arabic|English|French)', text):
+                                    continue
+                                if clean and len(text) < 50 and len(clean[-1]) > 100:
+                                    break
+                                short = text[:60]
+                                if short in seen:
+                                    continue
+                                seen.add(short)
+                                clean.append(text)
+                            if clean and sum(len(x) for x in clean) > 200:
+                                a["text"] = '\n\n'.join(clean)
+                    # Fallback: field--name-body (only has lead paragraphs)
+                    if not a.get("text"):
+                        body_m = re.search(r'field--name-body[^>]*>(.*?)</div>\s*</div>\s*</div>', html, re.DOTALL|re.IGNORECASE)
+                        if not body_m:
+                            body_m = re.search(r'field--name-body[^>]*>(.*?)</div>', html, re.DOTALL|re.IGNORECASE)
+                        if body_m:
+                            paras = re.findall(r'<p[^>]*>(.*?)</p>', body_m.group(1), re.DOTALL|re.IGNORECASE)
+                            clean = []
+                            for p in paras:
+                                text = re.sub(r'<[^>]+>', ' ', p)
+                                text = html_mod.unescape(text)
+                                text = re.sub(r'\s+', ' ', text).strip()
+                                if len(text) >= 25:
+                                    clean.append(text)
+                            if clean:
+                                a["text"] = '\n\n'.join(clean)
                 # Fallback: BBC __NEXT_DATA__ (Next.js SPA)
                 if not a.get("text") and "bbc.com" in link:
                     bbc_text = _extract_bbc_next_data(html)
@@ -1393,7 +1510,7 @@ def generate_latest_json(articles, base_dir):
     print(f"latest_news.json: {len(latest)} articles")
 
 def esc(text):
-    return text.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace('"',"&quot;").replace("'","&#39;")
+    return text.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace('"',"&quot;").replace("'","&#39;").replace("\n","&#10;").replace("\r","")
 
 def sanitize_url(url):
     if not url: return url
