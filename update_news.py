@@ -1572,7 +1572,8 @@ def build_articles(articles):
         reading_time = _calc_reading_time(a.get("text", ""))
         sentiment, sent_score = _analyze_sentiment(a.get("text", ""))
         sent_icon = "😐" if sentiment == "neutral" else ("😊" if sentiment == "positive" else "😟")
-        cards += f'<div class="a{lm}" data-t="{t.lower()}" data-s="{a["source_clean"].lower()}" data-r="{r}" data-cat="{cat}"><div class="ac" data-id="{uid}" data-link="{el}" data-title="{t}" data-source="{sc}" data-src-color="{a["source_color"]}" data-txt="{txt}"{vid_attr}{img_attr}>{ih}{vid_icon}<div class="ab"><div class="am"><span class="as" style="background:{a["source_color"]}">{sc}</span><span class="ad">📖 {reading_time} دقيقة • {sent_icon} {esc(a["published"][:20])}</span></div><div class="at">{t}</div><div class="ae">{sm}</div></div></div><div class="sb-btn" data-share="1" title="مشاركة">↗</div></div>'
+        el_esc = esc(el)
+        cards += f'<div class="a{lm}" data-t="{esc(t.lower())}" data-s="{esc(a["source_clean"].lower())}" data-r="{r}" data-cat="{cat}"><div class="ac" data-id="{uid}" data-link="{el_esc}" data-title="{t}" data-source="{sc}" data-src-color="{a["source_color"]}" data-txt="{txt}"{vid_attr}{img_attr} onclick="openModal(this)">{ih}{vid_icon}<div class="ab"><div class="am"><span class="as" style="background:{a["source_color"]}">{sc}</span><span class="ad">📖 {reading_time} دقيقة • {sent_icon} {esc(a["published"][:20])}</span></div><div class="at">{t}</div><div class="ae">{sm}</div></div></div><div class="sb-btn" data-share="1" title="مشاركة">↗</div></div>'
     return cards
 
 def build_badges_all():

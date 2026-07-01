@@ -5,7 +5,7 @@
 <meta http-equiv="Cache-Control" content="public, max-age=300, s-maxage=600">
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' gc.zgo.at static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' gc.zgo.at api.github.com wttr.in; frame-src youtube.com www.youtube.com">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src-elem 'self' 'unsafe-inline' gc.zgo.at static.cloudflareinsights.com; script-src-attr 'unsafe-inline'; script-src 'self' 'unsafe-inline' gc.zgo.at static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' gc.zgo.at api.github.com wttr.in; frame-src youtube.com www.youtube.com">
 <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
 <meta name="googlebot" content="index, follow">
 <link rel="canonical" href="https://1ymenn.github.io/dz-akhbar/">
@@ -222,11 +222,11 @@ bodyEl.scrollTop=0;
 document.getElementById('modProgress').style.width='0%';
 document.getElementById('modOrigLink').href=link||'#';
 document.getElementById('modOrigLink').style.display='';
-document.getElementById('modShareBtn').textContent='🔗';
+document.getElementById('modShareBtn').textContent='🔗';console.log('openModal OK',title);
 document.getElementById('modShareBtn').style.background='';
 document.getElementById('articleModal').classList.add('open');
 document.body.style.overflow='hidden';
-history.pushState({article:true},'',window.location.pathname+'#article/'+id);
+try{history.pushState({article:true},'',window.location.pathname+'#article/'+id);}catch(e){}
 bodyEl.onscroll=function(){var pct=bodyEl.scrollTop/(bodyEl.scrollHeight-bodyEl.clientHeight)*100;
 document.getElementById('modProgress').style.width=Math.min(pct||0,100)+'%';};}
 
@@ -269,7 +269,7 @@ function closeModal(e){if(e)e.stopPropagation();
 document.getElementById('articleModal').classList.remove('open');
 document.body.style.overflow='';
 document.getElementById('modBody').onscroll=null;
-history.pushState(null,'',window.location.pathname);}
+try{history.pushState(null,'',window.location.pathname);}catch(e){}}
 
 window.addEventListener('popstate',function(e){
 var modal=document.getElementById('articleModal');
@@ -288,7 +288,7 @@ if(card){clearInterval(ti);openModal(card);}
 
 document.addEventListener('keydown',function(e){if(e.key==='Escape'){closeModal(e)}});
 document.addEventListener('click',function(e){
-var t=e.target.closest('.ac[data-link],.sb-link[data-link]');if(t){openModal(t);return}
+var t=e.target.closest('.ac[data-link],.sb-link[data-link]');if(t){e.preventDefault();openModal(t);return}
 var s=e.target.closest('.sb-btn[data-share]');if(s){e.stopPropagation();shareArticle(s);return}
 var ta=e.target.closest('.trending-article');if(ta){var id=ta.getAttribute('data-id');var card=document.querySelector('.ac[data-id="'+id+'"]');if(card){openModal(card)}return}
 var ti=e.target.closest('.trending-item');if(ti){var kw=ti.querySelector('.trending-keyword').textContent.replace(/[🔥📈📊]/g,'').trim();searchTopic(kw);return}});
