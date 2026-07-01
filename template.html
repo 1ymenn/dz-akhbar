@@ -123,6 +123,7 @@ setInterval(upSince,3e4);upSince();
 var tk={{ ticker_json }};
 var RG={{ rg_json }};
 var ftData={{ ft_json }};
+var GITHUB_TOKEN='{{ GITHUB_TOKEN }}';
 {% raw %}
 function swT(t){CT=t;
 document.querySelectorAll('.sub-t').forEach(function(tx){tx.classList.toggle('active',tx.getAttribute('data-t')===t)});
@@ -427,6 +428,12 @@ msg.style.color='#D4A017';msg.style.display='block';
 
 localSubs.push({email:email,time:Date.now(),active:true});
 localStorage.setItem('newsletterSubscribers',JSON.stringify(localSubs));
+if(GITHUB_TOKEN){
+fetch('https://api.github.com/repos/1ymenn/dz-akhbar/dispatches',{
+method:'POST',
+headers:{'Authorization':'token '+GITHUB_TOKEN,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+body:JSON.stringify({event_type:'add-subscriber',client_payload:{email:email,timestamp:new Date().toISOString()}})
+}).catch(function(){})}
 msg.textContent='تم الاشتراك بنجاح! شكراً لك';
 msg.style.color='#006633';
 document.getElementById('emailInput').value='';
@@ -447,7 +454,7 @@ function getDailyDigest(){
 try{return JSON.parse(localStorage.getItem('dailyDigest'))}catch(e){return null}}
 
 initLM();setTimeout(initLM,200);
-if('serviceWorker' in navigator)navigator.serviceWorker.register('/service-worker.js').catch(function(){});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./service-worker.js').catch(function(){});
 
 var _prefetched={};
 document.addEventListener('mouseover',function(e){

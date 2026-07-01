@@ -75,7 +75,7 @@ jobs:
           cache: 'pip'
 
       - name: Install dependencies
-        run: pip install python-dotenv
+        run: pip install requests python-dotenv
 
       - name: Send newsletter
         env:
