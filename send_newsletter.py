@@ -20,7 +20,7 @@ except ImportError:
 GMAIL_USER = os.getenv("EMAIL_FROM", "")
 GMAIL_PASS = os.getenv("GMAIL_APP_PASSWORD", "")
 REPORT_EMAIL = os.getenv("REPORT_EMAIL", "")
-GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+GITHUB_TOKEN = os.getenv("GH_PAT") or os.getenv("GITHUB_TOKEN", "")
 GITHUB_REPO = "1ymenn/dz-akhbar"
 BASE_DIR = Path(__file__).parent
 SUBSCRIBERS_FILE = BASE_DIR / "subscribers.json"

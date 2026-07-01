@@ -2194,7 +2194,7 @@ def main():
     build_timestamp = int(time.time())
     trending_topics_html = build_trending_topics(all_articles)
     analytics_html = build_analytics_dashboard(all_articles)
-    github_token = os.getenv("GITHUB_TOKEN", "")
+    github_token = os.getenv("GH_PAT") or os.getenv("GITHUB_TOKEN", "")
     html = tmpl.render(
         css=CSS, title="جريدة الجزائر — aggregator الأخبار الجزائرية",
         meta_desc="أخبار الجزائر العاجلة من أشهر الصحف الجزائرية: الشروق، النهار، الخبر، البلاد، الحوار + أخبار الجامعات و المعاهد",
